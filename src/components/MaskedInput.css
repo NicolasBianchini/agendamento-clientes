@@ -1,0 +1,28 @@
+.masked-input {
+  width: 100%;
+  padding: 0.875rem 1rem;
+  font-size: 1rem;
+  border: 2px solid var(--color-gray-light);
+  border-radius: 8px;
+  background: var(--color-white);
+  color: var(--color-black-soft);
+  transition: all 0.2s;
+  font-family: inherit;
+}
+
+.masked-input:focus {
+  outline: none;
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px rgba(233, 199, 204, 0.2);
+}
+
+.masked-input:disabled {
+  background: var(--color-gray-light);
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.masked-input::placeholder {
+  color: var(--color-gray-medium);
+}
+

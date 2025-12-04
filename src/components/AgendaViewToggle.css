@@ -1,0 +1,51 @@
+.agenda-view-toggle {
+  display: flex;
+  gap: 0.5rem;
+  background: var(--color-white);
+  padding: 0.5rem;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(122, 62, 73, 0.08);
+}
+
+.toggle-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.625rem 1rem;
+  background: var(--color-gray-light);
+  border: none;
+  border-radius: 6px;
+  font-size: 0.9375rem;
+  font-weight: 500;
+  color: var(--color-black-soft);
+  cursor: pointer;
+  transition: all 0.2s;
+  white-space: nowrap;
+}
+
+.toggle-btn:hover {
+  background: var(--color-primary);
+  color: var(--color-white);
+}
+
+.toggle-btn.active {
+  background: var(--color-primary);
+  color: var(--color-white);
+  font-weight: 600;
+  box-shadow: 0 2px 8px rgba(122, 62, 73, 0.2);
+}
+
+.toggle-btn svg {
+  flex-shrink: 0;
+}
+
+.toggle-btn span {
+  display: none;
+}
+
+@media (min-width: 768px) {
+  .toggle-btn span {
+    display: inline;
+  }
+}
+

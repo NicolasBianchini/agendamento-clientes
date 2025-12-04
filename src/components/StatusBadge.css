@@ -1,0 +1,35 @@
+.status-badge {
+  display: inline-block;
+  padding: 0.375rem 0.75rem;
+  border-radius: 12px;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+
+.status-agendado {
+  background: rgba(33, 150, 243, 0.2);
+  color: var(--color-info);
+}
+
+.status-concluido {
+  background: rgba(76, 175, 80, 0.2);
+  color: var(--color-success);
+}
+
+.status-cancelado {
+  background: rgba(229, 62, 62, 0.2);
+  color: var(--color-error);
+}
+
+.status-ativo {
+  background: rgba(76, 175, 80, 0.2);
+  color: var(--color-success);
+}
+
+.status-inativo {
+  background: rgba(154, 154, 154, 0.2);
+  color: var(--color-gray-medium);
+}
+
