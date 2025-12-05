@@ -1,6 +1,8 @@
 import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { agendamentosService, clientesService, servicosService } from '../services/firestore'
+import { useConfiguracoes } from '../hooks/useConfiguracoes'
+import { formatarMoeda, formatarData, formatarHora, formatarDataHora } from '../utils/formatacao'
 import './AgendamentoDetalhesModal.css'
 
 interface AgendamentoDetalhes {
@@ -35,6 +37,7 @@ function AgendamentoDetalhesModal({
   onDelete,
   onStatusChange,
 }: AgendamentoDetalhesModalProps) {
+  const { config } = useConfiguracoes()
   const navigate = useNavigate()
   const [agendamento, setAgendamento] = useState<AgendamentoDetalhes | null>(null)
   const [isLoading, setIsLoading] = useState(false)
@@ -93,6 +96,7 @@ function AgendamentoDetalhesModal({
         agendamentoData.clienteId ? clientesService.getById(agendamentoData.clienteId) : null,
         agendamentoData.servicoId ? servicosService.getById(agendamentoData.servicoId) : null,
       ])
+
       
       // Converter data para string YYYY-MM-DD
       // IMPORTANTE: Usar timezone local para evitar problemas de conversão
@@ -589,10 +593,7 @@ function AgendamentoDetalhesModal({
                 <div className="info-item">
                   <span className="info-label">Valor:</span>
                   <span className="info-value info-value-price">
-                    {new Intl.NumberFormat('pt-BR', {
-                      style: 'currency',
-                      currency: 'BRL',
-                    }).format(agendamento.servicoValor)}
+                    {formatarMoeda(agendamento.servicoValor, config)}
                   </span>
                 </div>
 

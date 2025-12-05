@@ -11,19 +11,46 @@ service cloud.firestore {
     }
     
     // Regras para a coleção de clientes
+    // NOTA: Como o sistema usa autenticação customizada, a separação por usuário
+    // é garantida pelo código (firestore.ts). As regras aqui garantem que:
+    // 1. O userId deve estar presente ao criar
+    // 2. O userId não pode ser alterado após a criação
     match /clientes/{clienteId} {
-      allow read, write: if true;
+      allow read: if true; // O código filtra por userId
+      allow create: if request.resource.data.keys().hasAll(['userId']) 
+                    && request.resource.data.userId is string;
+      allow update: if !request.resource.data.diff(resource.data).affectedKeys().hasAny(['userId']);
+      allow delete: if true; // O código verifica userId antes de deletar
     }
     
     // Regras para a coleção de serviços
     match /servicos/{servicoId} {
-      allow read, write: if true;
+      allow read: if true; // O código filtra por userId
+      allow create: if request.resource.data.keys().hasAll(['userId']) 
+                    && request.resource.data.userId is string;
+      allow update: if !request.resource.data.diff(resource.data).affectedKeys().hasAny(['userId']);
+      allow delete: if true; // O código verifica userId antes de deletar
     }
     
     // Regras para a coleção de agendamentos
     match /agendamentos/{agendamentoId} {
-      allow read, write: if true;
+      allow read: if true; // O código filtra por userId
+      allow create: if request.resource.data.keys().hasAll(['userId']) 
+                    && request.resource.data.userId is string;
+      allow update: if !request.resource.data.diff(resource.data).affectedKeys().hasAny(['userId']);
+      allow delete: if true; // O código verifica userId antes de deletar
     }
+
+    // Regras para a coleção de configurações
+    // Cada usuário pode ter apenas uma configuração (criada/atualizada automaticamente)
+    match /configuracoes/{configId} {
+      allow read: if true; // O código filtra por userId
+      allow create: if request.resource.data.keys().hasAll(['userId']) 
+                    && request.resource.data.userId is string;
+      allow update: if !request.resource.data.diff(resource.data).affectedKeys().hasAny(['userId']);
+      allow delete: if true; // O código verifica userId antes de deletar
+    }
+    
   }
 }
 

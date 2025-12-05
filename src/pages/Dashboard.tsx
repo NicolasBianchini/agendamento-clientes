@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { clientesService, agendamentosService, servicosService, fromFirestoreDate } from '../services/firestore'
+import { useConfiguracoes } from '../hooks/useConfiguracoes'
+import { formatarMoeda } from '../utils/formatacao'
 import NovoClienteModal from '../components/NovoClienteModal'
 import AgendamentoModal from '../components/AgendamentoModal'
 import AgendamentoDetalhesModal from '../components/AgendamentoDetalhesModal'
@@ -24,6 +26,7 @@ interface Appointment {
 }
 
 function Dashboard() {
+  const { config } = useConfiguracoes()
   const navigate = useNavigate()
   const [isLoading, setIsLoading] = useState(true)
   const [showNovoClienteModal, setShowNovoClienteModal] = useState(false)
@@ -40,7 +43,7 @@ function Dashboard() {
 
   const loadData = async () => {
     setIsLoading(true)
-    
+
     try {
       // Buscar dados do Firestore
       const [clientes, todosAgendamentos, servicos] = await Promise.all([
@@ -53,7 +56,7 @@ function Dashboard() {
       const hoje = new Date()
       hoje.setHours(0, 0, 0, 0)
       const hojeStr = hoje.toISOString().split('T')[0]
-      
+
       const fimSemana = new Date(hoje)
       fimSemana.setDate(hoje.getDate() + 7)
       const fimSemanaStr = fimSemana.toISOString().split('T')[0]
@@ -61,22 +64,22 @@ function Dashboard() {
       // Função auxiliar para converter data do Firestore para string YYYY-MM-DD
       const getDateString = (agData: any): string => {
         if (!agData) return ''
-        
+
         // Se for Timestamp do Firestore
         if (agData.toDate && typeof agData.toDate === 'function') {
           return agData.toDate().toISOString().split('T')[0]
         }
-        
+
         // Se for Date
         if (agData instanceof Date) {
           return agData.toISOString().split('T')[0]
         }
-        
+
         // Se for string
         if (typeof agData === 'string') {
           return agData.split('T')[0]
         }
-        
+
         return ''
       }
 
@@ -95,7 +98,7 @@ function Dashboard() {
           // Verificar se há agendamentos consecutivos (mesmo cliente, serviço e data)
           for (let j = i + 1; j < agendamentos.length; j++) {
             const proximoAgendamento = agendamentos[j]
-            
+
             if (
               !processados.has(proximoAgendamento.id) &&
               proximoAgendamento.clienteId === agendamentoAtual.clienteId &&
@@ -105,15 +108,15 @@ function Dashboard() {
               // Verificar se é consecutivo (diferença de 30 minutos)
               const horarioAtual = (agendamentoAtual.horario || '').split(':').map(Number)
               const horarioProximo = (proximoAgendamento.horario || '').split(':').map(Number)
-              
+
               if (horarioAtual.length === 2 && horarioProximo.length === 2) {
                 const minutosAtual = horarioAtual[0] * 60 + horarioAtual[1]
                 const minutosProximo = horarioProximo[0] * 60 + horarioProximo[1]
-                
+
                 // Verificar se o último horário do grupo é 30 minutos antes do próximo
                 const ultimoHorario = (grupo[grupo.length - 1].horario || '').split(':').map(Number)
                 const minutosUltimo = ultimoHorario[0] * 60 + ultimoHorario[1]
-                
+
                 if (minutosProximo - minutosUltimo === 30) {
                   grupo.push(proximoAgendamento)
                   processados.add(proximoAgendamento.id)
@@ -144,14 +147,14 @@ function Dashboard() {
         .sort((a: any, b: any) => {
           const dateAStr = getDateString(a.data)
           const dateBStr = getDateString(b.data)
-          
+
           if (dateAStr !== dateBStr) {
             return dateAStr.localeCompare(dateBStr)
           }
-          
+
           return (a.horario || '').localeCompare(b.horario || '')
         })
-      
+
       const agendamentosHoje = agruparAgendamentos(agendamentosHojeFiltrados)
 
       // Filtrar e agrupar agendamentos da semana
@@ -163,24 +166,24 @@ function Dashboard() {
         .sort((a: any, b: any) => {
           const dateAStr = getDateString(a.data)
           const dateBStr = getDateString(b.data)
-          
+
           if (dateAStr !== dateBStr) {
             return dateAStr.localeCompare(dateBStr)
           }
-          
+
           return (a.horario || '').localeCompare(b.horario || '')
         })
-      
+
       const agendamentosSemana = agruparAgendamentos(agendamentosSemanaFiltrados)
 
       // Calcular faturado hoje (agendamentos concluídos hoje)
       const concluidosHoje = todosAgendamentos.filter((ag: any) => {
         if (ag.status !== 'concluido') return false
-        
+
         const agDateStr = getDateString(ag.data)
         return agDateStr === hojeStr
       })
-      
+
       const faturadoHoje = concluidosHoje.reduce((total: number, ag: any) => {
         const servico = servicos.find((s: any) => s.id === ag.servicoId)
         return total + (servico?.valor || ag.servicoValor || 0)
@@ -202,18 +205,18 @@ function Dashboard() {
         .sort((a: any, b: any) => {
           const dateAStr = getDateString(a.data)
           const dateBStr = getDateString(b.data)
-          
+
           if (dateAStr !== dateBStr) {
             return dateAStr.localeCompare(dateBStr)
           }
-          
+
           // Se for o mesmo dia, ordenar por horário
           return (a.horario || '').localeCompare(b.horario || '')
         })
         .map((ag: any) => {
           const servico = servicos.find((s: any) => s.id === ag.servicoId)
           const cliente = clientes.find((c: any) => c.id === ag.clienteId)
-          
+
           return {
             id: ag.id,
             clienteId: ag.clienteId,
@@ -240,7 +243,7 @@ function Dashboard() {
         // Verificar se há agendamentos consecutivos (mesmo cliente, serviço e data)
         for (let j = i + 1; j < agendamentosFuturos.length; j++) {
           const proximoAgendamento = agendamentosFuturos[j]
-          
+
           if (
             !processados.has(proximoAgendamento.id) &&
             proximoAgendamento.clienteId === agendamentoAtual.clienteId &&
@@ -252,11 +255,11 @@ function Dashboard() {
             const horarioProximo = proximoAgendamento.horario.split(':').map(Number)
             const minutosAtual = horarioAtual[0] * 60 + horarioAtual[1]
             const minutosProximo = horarioProximo[0] * 60 + horarioProximo[1]
-            
+
             // Verificar se o último horário do grupo é 30 minutos antes do próximo
             const ultimoHorario = grupo[grupo.length - 1].horario.split(':').map(Number)
             const minutosUltimo = ultimoHorario[0] * 60 + ultimoHorario[1]
-            
+
             if (minutosProximo - minutosUltimo === 30) {
               grupo.push(proximoAgendamento)
               processados.add(proximoAgendamento.id)
@@ -307,12 +310,7 @@ function Dashboard() {
     loadData()
   }, [])
 
-  const formatCurrency = (value: number) => {
-    return new Intl.NumberFormat('pt-BR', {
-      style: 'currency',
-      currency: 'BRL',
-    }).format(value)
-  }
+  // Usar formatarMoeda com configurações do usuário
 
   const formatDate = (dateString: string) => {
     const date = new Date(dateString)
@@ -372,7 +370,7 @@ function Dashboard() {
     },
     {
       title: 'Faturado Hoje',
-      value: formatCurrency(stats.faturadoHoje),
+      value: formatarMoeda(stats.faturadoHoje, config),
       icon: (
         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
           <line x1="12" y1="1" x2="12" y2="23"></line>
@@ -440,13 +438,13 @@ function Dashboard() {
           ) : (
             <div className="appointments-list">
               {proximosAgendamentos.map((appointment) => {
-                const horarios = Array.isArray(appointment.horario) 
-                  ? appointment.horario 
+                const horarios = Array.isArray(appointment.horario)
+                  ? appointment.horario
                   : [appointment.horario]
                 const primeiroHorario = horarios[0]
                 const ultimoHorario = horarios[horarios.length - 1]
-                const horarioDisplay = horarios.length > 1 
-                  ? `${primeiroHorario} - ${ultimoHorario}` 
+                const horarioDisplay = horarios.length > 1
+                  ? `${primeiroHorario} - ${ultimoHorario}`
                   : primeiroHorario
 
                 return (

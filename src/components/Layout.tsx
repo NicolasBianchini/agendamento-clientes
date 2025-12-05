@@ -46,15 +46,15 @@ function Layout({ userName }: LayoutProps) {
 
   const getIcon = (iconName: string): JSX.Element | null => {
     const iconSize = 20
-    const iconProps = { 
-      width: iconSize, 
-      height: iconSize, 
-      viewBox: '0 0 24 24', 
-      fill: 'none' as const, 
-      stroke: 'currentColor', 
-      strokeWidth: '2' 
+    const iconProps = {
+      width: iconSize,
+      height: iconSize,
+      viewBox: '0 0 24 24',
+      fill: 'none' as const,
+      stroke: 'currentColor',
+      strokeWidth: '2'
     }
-    
+
     switch (iconName) {
       case 'dashboard':
         return (
@@ -101,6 +101,13 @@ function Layout({ userName }: LayoutProps) {
             <polyline points="10 9 9 9 8 9"></polyline>
           </svg>
         )
+      case 'configuracoes':
+        return (
+          <svg {...iconProps}>
+            <circle cx="12" cy="12" r="3"></circle>
+            <path d="M12 1v6m0 6v6m9-9h-6m-6 0H3m15.364 6.364l-4.243-4.243m-4.242 0L5.636 18.364M18.364 5.636l-4.243 4.243m-4.242 0L5.636 5.636"></path>
+          </svg>
+        )
       default:
         return null
     }
@@ -112,6 +119,7 @@ function Layout({ userName }: LayoutProps) {
     { path: '/servicos', label: 'Serviços', iconName: 'servicos' },
     { path: '/agenda', label: 'Agenda', iconName: 'agenda' },
     { path: '/historico', label: 'Histórico', iconName: 'historico' },
+    { path: '/configuracoes', label: 'Configurações', iconName: 'configuracoes' },
   ]
 
   const isActive = (path: string) => {

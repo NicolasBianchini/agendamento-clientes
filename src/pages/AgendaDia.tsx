@@ -1,8 +1,9 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { agendamentosService, clientesService, servicosService } from '../services/firestore'
 import AgendaViewToggle from '../components/AgendaViewToggle'
 import AgendamentoModal from '../components/AgendamentoModal'
 import AgendamentoDetalhesModal from '../components/AgendamentoDetalhesModal'
+import { useConfiguracoes } from '../hooks/useConfiguracoes'
 import './AgendaDia.css'
 
 interface Agendamento {
@@ -25,6 +26,7 @@ interface AgendamentoAgrupado {
 }
 
 function AgendaDia() {
+  const { config } = useConfiguracoes()
   const [selectedDate, setSelectedDate] = useState(new Date())
   const [agendamentos, setAgendamentos] = useState<Record<string, Agendamento[]>>({})
   const [isLoading, setIsLoading] = useState(true)
@@ -39,7 +41,7 @@ function AgendaDia() {
 
   useEffect(() => {
     loadAgendamentos()
-  }, [selectedDate])
+  }, [selectedDate, config]) // Recarregar quando configurações mudarem
 
   const loadAgendamentos = async () => {
     setIsLoading(true)
@@ -237,14 +239,34 @@ function AgendaDia() {
     return diff < 30 * 60 * 1000 // 30 minutos
   }
 
-  const generateTimeSlots = (): string[] => {
+  // Usar useMemo para recalcular quando as configurações mudarem
+  const timeSlots = useMemo(() => {
+    if (!config) {
+      // Valores padrão enquanto carrega
     const slots: string[] = []
-    for (let hour = 8; hour <= 20; hour++) {
+      for (let hour = 6; hour <= 23; hour++) {
       slots.push(`${hour.toString().padStart(2, '0')}:00`)
       slots.push(`${hour.toString().padStart(2, '0')}:30`)
     }
     return slots
   }
+
+    const slots: string[] = []
+    const [startHour, startMinute] = config.horarioInicial.split(':').map(Number)
+    const [endHour, endMinute] = config.horarioFinal.split(':').map(Number)
+    const intervalo = config.intervaloMinutos
+
+    const startMinutes = startHour * 60 + startMinute
+    const endMinutes = endHour * 60 + endMinute
+
+    for (let minutes = startMinutes; minutes <= endMinutes; minutes += intervalo) {
+      const hour = Math.floor(minutes / 60)
+      const minute = minutes % 60
+      slots.push(`${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`)
+    }
+
+    return slots
+  }, [config])
 
   const handleTimeSlotClick = (time: string) => {
     if (!agendamentos[time] || agendamentos[time].length === 0) {
@@ -272,7 +294,6 @@ function AgendaDia() {
     return <span className={`status-badge ${config.class}`}>{config.label}</span>
   }
 
-  const timeSlots = generateTimeSlots()
 
   return (
     <div className="agenda-dia">

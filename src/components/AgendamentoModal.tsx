@@ -1,5 +1,8 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useMemo } from 'react'
 import { clientesService, servicosService, agendamentosService, toFirestoreDate } from '../services/firestore'
+import { useConfiguracoes } from '../hooks/useConfiguracoes'
+import { formatarMoeda } from '../utils/formatacao'
+import { enviarConfirmacaoAgendamento } from '../services/mensagens'
 import './AgendamentoModal.css'
 
 interface Cliente {
@@ -35,6 +38,7 @@ function AgendamentoModal({
   onClose,
   onSuccess,
 }: AgendamentoModalProps) {
+  const { config } = useConfiguracoes()
   const [clientes, setClientes] = useState<Cliente[]>([])
   const [servicos, setServicos] = useState<Servico[]>([])
   const [clienteId, setClienteId] = useState<string>('')
@@ -110,13 +114,13 @@ function AgendamentoModal({
         clientesService.getAll(),
         servicosService.getActive(),
       ])
-      
+
       setClientes(clientesData.map((c: any) => ({ id: c.id, nome: c.nome })))
-      setServicos(servicosData.map((s: any) => ({ 
-        id: s.id, 
-        nome: s.nome, 
-        valor: s.valor || 0, 
-        ativo: s.ativo !== false 
+      setServicos(servicosData.map((s: any) => ({
+        id: s.id,
+        nome: s.nome,
+        valor: s.valor || 0,
+        ativo: s.ativo !== false
       })))
     } catch (error) {
       console.error('Erro ao carregar dados:', error)
@@ -127,22 +131,22 @@ function AgendamentoModal({
 
   const loadAgendamentoData = async () => {
     if (!agendamentoId) return
-    
+
     setIsLoading(true)
     try {
       // Buscar agendamento no Firestore
       const agendamento = await agendamentosService.getById(agendamentoId)
-      
+
       if (!agendamento) {
         alert('Agendamento não encontrado.')
         onClose()
         return
       }
-      
-      const agDate = agendamento.data instanceof Date 
-        ? agendamento.data.toISOString().split('T')[0] 
+
+      const agDate = agendamento.data instanceof Date
+        ? agendamento.data.toISOString().split('T')[0]
         : agendamento.data
-      
+
       setClienteId(agendamento.clienteId || '')
       setServicoId(agendamento.servicoId || '')
       setData(agDate)
@@ -180,12 +184,12 @@ function AgendamentoModal({
       // Criar data selecionada sem problemas de timezone
       const [year, month, day] = data.split('-').map(Number)
       const selectedDate = new Date(year, month - 1, day)
-      
+
       // Criar data de hoje sem problemas de timezone
       const today = new Date()
       const todayDate = new Date(today.getFullYear(), today.getMonth(), today.getDate())
       const selectedDateOnly = new Date(selectedDate.getFullYear(), selectedDate.getMonth(), selectedDate.getDate())
-      
+
       if (selectedDateOnly < todayDate) {
         newErrors.data = 'Não é possível agendar em datas passadas'
       }
@@ -197,22 +201,22 @@ function AgendamentoModal({
       // Criar data selecionada sem problemas de timezone
       const [year, month, day] = data.split('-').map(Number)
       const selectedDate = new Date(year, month - 1, day)
-      
+
       // Criar data de hoje sem problemas de timezone
       const today = new Date()
       const todayDate = new Date(today.getFullYear(), today.getMonth(), today.getDate())
       const selectedDateOnly = new Date(selectedDate.getFullYear(), selectedDate.getMonth(), selectedDate.getDate())
-      
+
       // Verificar se a data selecionada é hoje
       const isToday = selectedDateOnly.getTime() === todayDate.getTime()
       const now = new Date()
-      
+
       // Verificar cada horário selecionado
       for (const horario of horarios) {
         const [hours, minutes] = horario.split(':').map(Number)
         const selectedDateTime = new Date(selectedDate)
         selectedDateTime.setHours(hours, minutes, 0, 0)
-        
+
         if (isToday && selectedDateTime < now) {
           newErrors.horario = 'Não é possível agendar em horários passados'
           break
@@ -233,13 +237,13 @@ function AgendamentoModal({
           horario,
           mode === 'edit' ? agendamentoId : null
         )
-        
+
         if (hasConflict) {
           setErrors({ ...errors, conflito: `Já existe um agendamento no horário ${horario}` })
           return true
         }
       }
-      
+
       return false
     } catch (error) {
       console.error('Erro ao verificar conflito:', error)
@@ -247,20 +251,38 @@ function AgendamentoModal({
     }
   }
 
-  // Gerar lista de horários disponíveis (08:00 até 18:00, de 30 em 30 minutos)
-  const generateHorariosDisponiveis = (): string[] => {
-    const horarios: string[] = []
-    for (let hour = 8; hour <= 18; hour++) {
-      for (let minute = 0; minute < 60; minute += 30) {
-        const horaStr = hour.toString().padStart(2, '0')
-        const minutoStr = minute.toString().padStart(2, '0')
-        horarios.push(`${horaStr}:${minutoStr}`)
+  // Gerar lista de horários disponíveis baseado nas configurações
+  // Usar useMemo para recalcular quando as configurações mudarem
+  const horariosDisponiveis = useMemo(() => {
+    if (!config) {
+      // Valores padrão enquanto carrega
+      const horarios: string[] = []
+      for (let hour = 6; hour <= 23; hour++) {
+        for (let minute = 0; minute < 60; minute += 30) {
+          const horaStr = hour.toString().padStart(2, '0')
+          const minutoStr = minute.toString().padStart(2, '0')
+          horarios.push(`${horaStr}:${minutoStr}`)
+        }
       }
+      return horarios
     }
-    return horarios
-  }
 
-  const horariosDisponiveis = generateHorariosDisponiveis()
+    const horarios: string[] = []
+    const [startHour, startMinute] = config.horarioInicial.split(':').map(Number)
+    const [endHour, endMinute] = config.horarioFinal.split(':').map(Number)
+    const intervalo = config.intervaloMinutos
+
+    const startMinutes = startHour * 60 + startMinute
+    const endMinutes = endHour * 60 + endMinute
+
+    for (let minutes = startMinutes; minutes <= endMinutes; minutes += intervalo) {
+      const hour = Math.floor(minutes / 60)
+      const minute = minutes % 60
+      horarios.push(`${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`)
+    }
+
+    return horarios
+  }, [config])
 
   const toggleHorario = (horario: string) => {
     if (horarios.includes(horario)) {
@@ -273,7 +295,7 @@ function AgendamentoModal({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    
+
     if (!validateForm()) {
       return
     }
@@ -294,14 +316,64 @@ function AgendamentoModal({
         observacoes: observacoes.trim() || null,
         status,
       }
-      
+
       if (mode === 'create') {
+        // Buscar dados do cliente e serviço para enviar mensagem
+        const [cliente, servico] = await Promise.all([
+          clienteId ? clientesService.getById(clienteId) : null,
+          servicoId ? servicosService.getById(servicoId) : null,
+        ])
+
         // Criar um agendamento para cada horário selecionado
         for (const horario of horarios) {
           await agendamentosService.create({
             ...baseData,
             horario,
           })
+        }
+
+        // Enviar mensagem de confirmação após criar o agendamento
+        if (cliente?.telefone && servico) {
+          console.log('📅 [AGENDAMENTO] Agendamento criado com sucesso, iniciando envio de mensagem...')
+          console.log('📅 [AGENDAMENTO] Cliente:', cliente.nome, '- Telefone:', cliente.telefone)
+          console.log('📅 [AGENDAMENTO] Serviço:', servico.nome, '- Valor:', servico.valor)
+
+          try {
+            const dadosMensagem = {
+              clienteNome: cliente.nome,
+              clienteTelefone: cliente.telefone,
+              servicoNome: servico.nome,
+              servicoValor: servico.valor,
+              data: data,
+              horario: horarios.length === 1 ? horarios[0] : horarios,
+              observacoes: observacoes.trim() || undefined,
+            }
+
+            console.log('📅 [AGENDAMENTO] Dados preparados para mensagem:', dadosMensagem)
+
+            // Enviar mensagem automaticamente via API
+            const enviado = await enviarConfirmacaoAgendamento(dadosMensagem, config)
+
+            if (enviado) {
+              console.log('✅ [AGENDAMENTO] Mensagem de confirmação enviada com sucesso!')
+            } else {
+              console.warn('⚠️ [AGENDAMENTO] Mensagem não foi enviada.')
+              console.warn('⚠️ [AGENDAMENTO] Verifique as configurações de mensagens automáticas em Configurações.')
+            }
+          } catch (error) {
+            console.error('❌ [AGENDAMENTO] Erro ao enviar mensagem de confirmação:', error)
+            if (error instanceof Error) {
+              console.error('❌ [AGENDAMENTO] Detalhes:', error.message, error.stack)
+            }
+            // Não bloquear o fluxo se houver erro no envio da mensagem
+          }
+        } else {
+          if (!cliente?.telefone) {
+            console.warn('⚠️ [AGENDAMENTO] Cliente não possui telefone cadastrado. Mensagem não será enviada.')
+          }
+          if (!servico) {
+            console.warn('⚠️ [AGENDAMENTO] Serviço não encontrado. Mensagem não será enviada.')
+          }
         }
       } else if (agendamentoId) {
         // Em modo de edição, atualizar apenas o primeiro horário (comportamento original)
@@ -311,7 +383,7 @@ function AgendamentoModal({
             ...baseData,
             horario: horarios[0],
           })
-          
+
           // Criar novos agendamentos para horários adicionais
           for (let i = 1; i < horarios.length; i++) {
             await agendamentosService.create({
@@ -321,16 +393,16 @@ function AgendamentoModal({
           }
         }
       }
-      
+
       setShowSuccess(true)
-      
+
       setTimeout(() => {
         resetForm()
         setShowSuccess(false)
         onSuccess?.()
         onClose()
       }, 1500)
-      
+
     } catch (error) {
       alert(`Erro ao ${mode === 'create' ? 'criar' : 'atualizar'} agendamento. Tente novamente.`)
       console.error(error)
@@ -427,7 +499,7 @@ function AgendamentoModal({
                         setClienteId('')
                       } else {
                         // Se o texto digitado corresponder exatamente a um cliente, selecionar automaticamente
-                        const exactMatch = clientes.find(c => 
+                        const exactMatch = clientes.find(c =>
                           c.nome.toLowerCase() === value.toLowerCase()
                         )
                         if (exactMatch) {
@@ -496,10 +568,7 @@ function AgendamentoModal({
                   <option value="">Selecione um serviço</option>
                   {servicos.map((servico) => (
                     <option key={servico.id} value={servico.id}>
-                      {servico.nome} - {new Intl.NumberFormat('pt-BR', {
-                        style: 'currency',
-                        currency: 'BRL',
-                      }).format(servico.valor)}
+                      {servico.nome} - {formatarMoeda(servico.valor, config)}
                     </option>
                   ))}
                 </select>
@@ -545,26 +614,26 @@ function AgendamentoModal({
                         const isSelected = horarios.includes(horario)
                         const isPast = (() => {
                           if (!data) return false
-                          
+
                           // Criar data selecionada sem problemas de timezone
                           const [year, month, day] = data.split('-').map(Number)
                           const selectedDate = new Date(year, month - 1, day)
-                          
+
                           // Criar data de hoje sem problemas de timezone
                           const today = new Date()
                           const todayDate = new Date(today.getFullYear(), today.getMonth(), today.getDate())
                           const selectedDateOnly = new Date(selectedDate.getFullYear(), selectedDate.getMonth(), selectedDate.getDate())
-                          
+
                           const isToday = selectedDateOnly.getTime() === todayDate.getTime()
                           if (!isToday) return false
-                          
+
                           // Se for hoje, verificar se o horário já passou
                           const [hours, minutes] = horario.split(':').map(Number)
                           const horarioDateTime = new Date(selectedDate)
                           horarioDateTime.setHours(hours, minutes, 0, 0)
                           return horarioDateTime < new Date()
                         })()
-                        
+
                         return (
                           <button
                             key={horario}
