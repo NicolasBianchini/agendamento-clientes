@@ -1,11 +1,13 @@
 import { useState, useEffect } from 'react'
-import { servicosService } from '../services/firestore'
+import { servicosService, agendamentosService } from '../services/firestore'
+import { useKeyboardNavigation } from '../hooks/useKeyboardNavigation'
 import './EditarServicoModal.css'
 
 interface ServicoData {
   id: string
   nome: string
   valor: number
+  ativo?: boolean
 }
 
 interface EditarServicoModalProps {
@@ -19,7 +21,8 @@ interface EditarServicoModalProps {
 function EditarServicoModal({ isOpen, servicoId, servicoData, onClose, onSuccess }: EditarServicoModalProps) {
   const [nome, setNome] = useState('')
   const [valor, setValor] = useState('')
-  const [errors, setErrors] = useState<{ nome?: string; valor?: string }>({})
+  const [ativo, setAtivo] = useState(true)
+  const [errors, setErrors] = useState<{ nome?: string; valor?: string; ativo?: string }>({})
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   const [showSuccess, setShowSuccess] = useState(false)
@@ -30,6 +33,7 @@ function EditarServicoModal({ isOpen, servicoId, servicoData, onClose, onSuccess
         // Se os dados já foram passados como prop, usar diretamente
         setNome(servicoData.nome)
         setValor(formatCurrency(servicoData.valor.toString()))
+        setAtivo(servicoData.ativo !== false)
         setErrors({})
         setIsLoading(false)
       } else {
@@ -57,6 +61,7 @@ function EditarServicoModal({ isOpen, servicoId, servicoData, onClose, onSuccess
       
       setNome(servico.nome)
       setValor(formatCurrency((servico.valor || 0).toString()))
+      setAtivo(servico.ativo !== false) // Default true
       setErrors({})
     } catch (error) {
       alert('Erro ao carregar dados do serviço. Tente novamente.')
@@ -160,6 +165,32 @@ function EditarServicoModal({ isOpen, servicoId, servicoData, onClose, onSuccess
 
     if (!servicoId) return
 
+    // Verificar se está tentando desativar um serviço que está em uso
+    const servicoAtual = servicoData || await servicosService.getById(servicoId)
+    const estavaAtivo = servicoAtual?.ativo !== false
+
+    if (estavaAtivo && !ativo) {
+      // Verificar se há agendamentos ativos usando este serviço
+      try {
+        const todosAgendamentos = await agendamentosService.getAll()
+        const agendamentosAtivos = todosAgendamentos.filter(
+          (ag: any) => ag.servicoId === servicoId && ag.status === 'agendado'
+        )
+
+        if (agendamentosAtivos.length > 0) {
+          setErrors({
+            ...errors,
+            ativo: `Este serviço possui ${agendamentosAtivos.length} agendamento(s) ativo(s). Não é possível desativá-lo.`
+          })
+          return
+        }
+      } catch (error) {
+        console.error('Erro ao verificar agendamentos:', error)
+        alert('Erro ao verificar se o serviço está em uso. Tente novamente.')
+        return
+      }
+    }
+
     setIsSubmitting(true)
 
     try {
@@ -168,6 +199,7 @@ function EditarServicoModal({ isOpen, servicoId, servicoData, onClose, onSuccess
       await servicosService.update(servicoId, {
         nome: nome.trim(),
         valor: valorNumerico,
+        ativo: ativo,
       })
       
       // Mostrar sucesso
@@ -191,6 +223,7 @@ function EditarServicoModal({ isOpen, servicoId, servicoData, onClose, onSuccess
   const resetForm = () => {
     setNome('')
     setValor('')
+    setAtivo(true)
     setErrors({})
     setIsSubmitting(false)
     setIsLoading(false)
@@ -206,11 +239,16 @@ function EditarServicoModal({ isOpen, servicoId, servicoData, onClose, onSuccess
 
   const isFormValid = nome.trim() && parseCurrency(valor) > 0 && !errors.nome && !errors.valor
 
+  const modalRef = useKeyboardNavigation(isOpen, handleClose, {
+    closeOnEscape: true,
+    trapFocus: true,
+  })
+
   if (!isOpen) return null
 
   return (
     <div className="modal-overlay editar-servico-overlay" onClick={handleClose}>
-      <div className="modal-content editar-servico-modal" onClick={(e) => e.stopPropagation()}>
+      <div ref={modalRef} className="modal-content editar-servico-modal" onClick={(e) => e.stopPropagation()}>
         <div className="modal-header">
           <h2 className="modal-title">Editar Serviço</h2>
           <button
@@ -280,6 +318,25 @@ function EditarServicoModal({ isOpen, servicoId, servicoData, onClose, onSuccess
                   <span className="error-message">{errors.valor}</span>
                 )}
                 <span className="form-hint">Digite o valor do serviço</span>
+              </div>
+
+              <div className="form-group">
+                <label className="form-label">Status</label>
+                <div className="form-checkbox-group">
+                  <label className="checkbox-label">
+                    <input
+                      type="checkbox"
+                      checked={ativo}
+                      onChange={(e) => setAtivo(e.target.checked)}
+                      disabled={isSubmitting}
+                    />
+                    <span>Serviço ativo</span>
+                  </label>
+                  <span className="form-hint">Serviços inativos não aparecem na lista ao criar agendamentos</span>
+                </div>
+                {errors.ativo && (
+                  <span className="error-message">{errors.ativo}</span>
+                )}
               </div>
 
               <div className="form-actions">

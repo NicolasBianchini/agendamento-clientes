@@ -3,6 +3,7 @@ import { clientesService, servicosService, agendamentosService, toFirestoreDate 
 import { useConfiguracoes } from '../hooks/useConfiguracoes'
 import { formatarMoeda } from '../utils/formatacao'
 import { enviarConfirmacaoAgendamento } from '../services/mensagens'
+import { useKeyboardNavigation } from '../hooks/useKeyboardNavigation'
 import './AgendamentoModal.css'
 
 interface Cliente {
@@ -235,7 +236,7 @@ function AgendamentoModal({
         const hasConflict = await agendamentosService.checkTimeConflict(
           data,
           horario,
-          mode === 'edit' ? agendamentoId : null
+          mode === 'edit' && agendamentoId ? agendamentoId : undefined
         )
 
         if (hasConflict) {
@@ -432,14 +433,16 @@ function AgendamentoModal({
     }
   }
 
-  const selectedCliente = clientes.find(c => c.id === clienteId)
-  const selectedServico = servicos.find(s => s.id === servicoId)
+  const modalRef = useKeyboardNavigation(isOpen, handleClose, {
+    closeOnEscape: true,
+    trapFocus: true,
+  })
 
   if (!isOpen) return null
 
   return (
     <div className="modal-overlay agendamento-overlay" onClick={handleClose}>
-      <div className="modal-content agendamento-modal" onClick={(e) => e.stopPropagation()}>
+      <div ref={modalRef} className="modal-content agendamento-modal" onClick={(e) => e.stopPropagation()}>
         <div className="modal-header">
           <h2 className="modal-title">
             {mode === 'create' ? 'Novo Agendamento' : 'Editar Agendamento'}

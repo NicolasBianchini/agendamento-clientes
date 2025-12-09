@@ -1,5 +1,7 @@
 import { useState, useEffect } from 'react'
-import { agendamentosService, clientesService, servicosService } from '../services/firestore'
+import { useSearchParams } from 'react-router-dom'
+import { agendamentosService, clientesService, servicosService, fromFirestoreDate } from '../services/firestore'
+import { Timestamp } from 'firebase/firestore'
 import './Historico.css'
 
 interface Atendimento {
@@ -23,14 +25,16 @@ interface Servico {
 }
 
 function Historico() {
+  const [searchParams] = useSearchParams()
   const [allAtendimentos, setAllAtendimentos] = useState<Atendimento[]>([])
   const [atendimentos, setAtendimentos] = useState<Atendimento[]>([])
   const [clientes, setClientes] = useState<Cliente[]>([])
   const [servicos, setServicos] = useState<Servico[]>([])
   const [isLoading, setIsLoading] = useState(true)
   
-  // Filtros
-  const [filtroCliente, setFiltroCliente] = useState<string>('')
+  // Filtros - inicializar com query params se existirem
+  const clienteFromUrl = searchParams.get('cliente') || ''
+  const [filtroCliente, setFiltroCliente] = useState<string>(clienteFromUrl)
   const [filtroServico, setFiltroServico] = useState<string>('')
   const [dataInicial, setDataInicial] = useState<string>('')
   const [dataFinal, setDataFinal] = useState<string>('')
@@ -44,6 +48,10 @@ function Historico() {
 
   useEffect(() => {
     loadData()
+    // Aplicar filtro de cliente da URL se existir
+    if (clienteFromUrl) {
+      setFiltroCliente(clienteFromUrl)
+    }
   }, [])
 
   useEffect(() => {
@@ -70,9 +78,35 @@ function Historico() {
           const cliente = clientesData.find((c: any) => c.id === ag.clienteId)
           const servico = servicosData.find((s: any) => s.id === ag.servicoId)
           
-          const agDate = ag.data instanceof Date 
-            ? ag.data.toISOString().split('T')[0] 
-            : ag.data
+          // Converter data do Firestore para string YYYY-MM-DD
+          let agDate: string
+          if (ag.data instanceof Timestamp) {
+            // Se for Timestamp do Firestore, converter para Date e depois para string
+            const date = fromFirestoreDate(ag.data)
+            agDate = date.toISOString().split('T')[0]
+          } else if (ag.data instanceof Date) {
+            // Se for Date, converter para string
+            agDate = ag.data.toISOString().split('T')[0]
+          } else if (typeof ag.data === 'string') {
+            // Se já for string, validar formato
+            if (/^\d{4}-\d{2}-\d{2}$/.test(ag.data)) {
+              agDate = ag.data
+            } else {
+              // Tentar converter string para Date
+              const date = new Date(ag.data)
+              if (!isNaN(date.getTime())) {
+                agDate = date.toISOString().split('T')[0]
+              } else {
+                // Se não conseguir converter, usar data atual como fallback
+                console.warn(`Data inválida encontrada: ${ag.data}, usando data atual`)
+                agDate = new Date().toISOString().split('T')[0]
+              }
+            }
+          } else {
+            // Fallback para data atual
+            console.warn(`Formato de data desconhecido: ${typeof ag.data}, usando data atual`)
+            agDate = new Date().toISOString().split('T')[0]
+          }
           
           return {
             id: ag.id,
@@ -100,6 +134,7 @@ function Historico() {
     let filtered = [...allAtendimentos]
 
     if (filtroCliente) {
+      // Filtrar por nome do cliente (pode vir da URL ou do select)
       filtered = filtered.filter(a => a.cliente === filtroCliente)
     }
 
@@ -179,7 +214,25 @@ function Historico() {
   }
 
   const formatDate = (dateStr: string): string => {
-    const date = new Date(dateStr)
+    if (!dateStr) {
+      return 'Data inválida'
+    }
+
+    // Se já estiver no formato YYYY-MM-DD, criar Date corretamente
+    let date: Date
+    if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
+      const [year, month, day] = dateStr.split('-').map(Number)
+      date = new Date(year, month - 1, day)
+    } else {
+      date = new Date(dateStr)
+    }
+
+    // Verificar se a data é válida
+    if (isNaN(date.getTime())) {
+      console.warn(`Data inválida: ${dateStr}`)
+      return 'Data inválida'
+    }
+
     return date.toLocaleDateString('pt-BR', {
       day: '2-digit',
       month: '2-digit',

@@ -58,28 +58,28 @@ function AgendaSemana() {
       const weekDays = getWeekDays()
       const startDate = formatDateKey(weekDays[0])
       const endDate = formatDateKey(weekDays[6])
-      
+
       const agendamentosSemana = await agendamentosService.getByDateRange(startDate, endDate)
-      
+
       // Buscar dados de clientes e serviços
       const [clientes, servicos] = await Promise.all([
         clientesService.getAll(),
         servicosService.getAll(),
       ])
-      
+
       // Organizar por data
       const agendamentosPorData: Record<string, Agendamento[]> = {}
-      
+
       weekDays.forEach((day) => {
         const dateStr = formatDateKey(day)
         agendamentosPorData[dateStr] = []
       })
-      
+
       agendamentosSemana.forEach((ag: any) => {
         const agDate = ag.data instanceof Date ? ag.data.toISOString().split('T')[0] : ag.data
         const cliente = clientes.find((c: any) => c.id === ag.clienteId)
         const servico = servicos.find((s: any) => s.id === ag.servicoId)
-        
+
         if (agendamentosPorData[agDate]) {
           agendamentosPorData[agDate].push({
             id: ag.id,
@@ -91,7 +91,7 @@ function AgendaSemana() {
           })
         }
       })
-      
+
       setAgendamentos(agendamentosPorData)
     } catch (error) {
       console.error('Erro ao carregar agendamentos:', error)
@@ -108,7 +108,7 @@ function AgendaSemana() {
     const weekDays = getWeekDays()
     const start = weekDays[0]
     const end = weekDays[6]
-    
+
     const startStr = start.toLocaleDateString('pt-BR', {
       day: '2-digit',
       month: '2-digit',
@@ -118,7 +118,7 @@ function AgendaSemana() {
       month: '2-digit',
       year: 'numeric',
     })
-    
+
     return `${startStr} - ${endStr}`
   }
 
@@ -182,13 +182,13 @@ function AgendaSemana() {
   const timeSlots = useMemo(() => {
     if (!config) {
       // Valores padrão enquanto carrega
-    const slots: string[] = []
+      const slots: string[] = []
       for (let hour = 6; hour <= 23; hour++) {
-      slots.push(`${hour.toString().padStart(2, '0')}:00`)
-      slots.push(`${hour.toString().padStart(2, '0')}:30`)
+        slots.push(`${hour.toString().padStart(2, '0')}:00`)
+        slots.push(`${hour.toString().padStart(2, '0')}:30`)
+      }
+      return slots
     }
-    return slots
-  }
 
     const slots: string[] = []
     const [startHour, startMinute] = config.horarioInicial.split(':').map(Number)
@@ -217,13 +217,13 @@ function AgendaSemana() {
           <h1 className="agenda-title">Agenda</h1>
           <div className="agenda-header-actions">
             <AgendaViewToggle />
-          <button
-            className="btn-primary"
-            onClick={() => {
-              setModalInitialData({})
-              setShowAgendamentoModal(true)
-            }}
-          >
+            <button
+              className="btn-primary"
+              onClick={() => {
+                setModalInitialData({})
+                setShowAgendamentoModal(true)
+              }}
+            >
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <line x1="12" y1="5" x2="12" y2="19"></line>
                 <line x1="5" y1="12" x2="19" y2="12"></line>
@@ -240,7 +240,7 @@ function AgendaSemana() {
             </svg>
             Semana Anterior
           </button>
-          
+
           <div className="date-display">
             <h2 className="date-text">{formatWeekRange()}</h2>
           </div>
@@ -292,7 +292,7 @@ function AgendaSemana() {
             {weekDays.map((day) => {
               const dateKey = formatDateKey(day)
               const dayAgendamentos = agendamentos[dateKey] || []
-              
+
               return (
                 <div
                   key={dateKey}
@@ -300,7 +300,7 @@ function AgendaSemana() {
                 >
                   {timeSlots.map((time) => {
                     const agendamento = dayAgendamentos.find(a => a.horario === time)
-                    
+
                     return (
                       <div
                         key={time}
@@ -359,7 +359,7 @@ function AgendaSemana() {
           setShowDetalhesModal(false)
           setSelectedAgendamentoId(null)
         }}
-        onDelete={(id) => {
+        onDelete={() => {
           loadAgendamentos()
         }}
         onStatusChange={() => {

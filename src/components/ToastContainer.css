@@ -52,8 +52,8 @@
 
 @media (max-width: 768px) {
   .toast-container {
-    left: 0;
-    right: 0;
+    left: 0.5rem;
+    right: 0.5rem;
     padding: 0.75rem;
   }
 
@@ -61,14 +61,39 @@
   .toast-container-top-left,
   .toast-container-bottom-right,
   .toast-container-bottom-left {
-    left: 0;
-    right: 0;
+    left: 0.5rem;
+    right: 0.5rem;
     align-items: stretch;
+  }
+
+  .toast-container-top,
+  .toast-container-bottom {
+    left: 0.5rem;
+    right: 0.5rem;
+    transform: none;
   }
 
   .toast-container > .toast {
     min-width: auto;
     max-width: 100%;
+  }
+}
+
+@media (max-width: 480px) {
+  .toast-container {
+    left: 0.25rem;
+    right: 0.25rem;
+    padding: 0.5rem;
+  }
+
+  .toast-container-top-right,
+  .toast-container-top-left,
+  .toast-container-bottom-right,
+  .toast-container-bottom-left,
+  .toast-container-top,
+  .toast-container-bottom {
+    left: 0.25rem;
+    right: 0.25rem;
   }
 }
 

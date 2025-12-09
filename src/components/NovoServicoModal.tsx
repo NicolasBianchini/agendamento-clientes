@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { servicosService } from '../services/firestore'
+import { useKeyboardNavigation } from '../hooks/useKeyboardNavigation'
 import './NovoServicoModal.css'
 
 interface NovoServicoModalProps {
@@ -18,13 +19,13 @@ function NovoServicoModal({ isOpen, onClose, onSuccess }: NovoServicoModalProps)
   const formatCurrency = (value: string): string => {
     // Remove tudo que não é número
     const numbers = value.replace(/\D/g, '')
-    
+
     if (!numbers) return ''
-    
+
     // Converte para centavos e depois formata
     const cents = parseInt(numbers, 10)
     const reais = cents / 100
-    
+
     // Formata como moeda brasileira
     return new Intl.NumberFormat('pt-BR', {
       style: 'currency',
@@ -66,7 +67,7 @@ function NovoServicoModal({ isOpen, onClose, onSuccess }: NovoServicoModalProps)
   const handleNomeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value
     setNome(value)
-    
+
     // Validação em tempo real
     if (errors.nome || value.trim()) {
       const error = validateNome(value)
@@ -78,7 +79,7 @@ function NovoServicoModal({ isOpen, onClose, onSuccess }: NovoServicoModalProps)
     const value = e.target.value
     const formatted = formatCurrency(value)
     setValor(formatted)
-    
+
     // Validação em tempo real
     if (errors.valor || formatted) {
       const error = validateValor(formatted)
@@ -89,19 +90,19 @@ function NovoServicoModal({ isOpen, onClose, onSuccess }: NovoServicoModalProps)
   const validateForm = (): boolean => {
     const nomeError = validateNome(nome)
     const valorError = validateValor(valor)
-    
+
     const newErrors = {
       nome: nomeError,
       valor: valorError,
     }
-    
+
     setErrors(newErrors)
     return !nomeError && !valorError
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    
+
     if (!validateForm()) {
       return
     }
@@ -111,16 +112,16 @@ function NovoServicoModal({ isOpen, onClose, onSuccess }: NovoServicoModalProps)
     try {
       // Salvar no Firestore
       const valorNumerico = parseCurrency(valor)
-      
+
       await servicosService.create({
         nome: nome.trim(),
         valor: valorNumerico,
         ativo: true,
       })
-      
+
       // Mostrar sucesso
       setShowSuccess(true)
-      
+
       // Limpar formulário e fechar após 1.5s
       setTimeout(() => {
         resetForm()
@@ -128,7 +129,7 @@ function NovoServicoModal({ isOpen, onClose, onSuccess }: NovoServicoModalProps)
         onSuccess?.()
         onClose()
       }, 1500)
-      
+
     } catch (error) {
       alert('Erro ao cadastrar serviço. Tente novamente.')
       console.error(error)
@@ -153,11 +154,16 @@ function NovoServicoModal({ isOpen, onClose, onSuccess }: NovoServicoModalProps)
 
   const isFormValid = nome.trim() && parseCurrency(valor) > 0 && !errors.nome && !errors.valor
 
+  const modalRef = useKeyboardNavigation(isOpen, handleClose, {
+    closeOnEscape: true,
+    trapFocus: true,
+  })
+
   if (!isOpen) return null
 
   return (
     <div className="modal-overlay novo-servico-overlay" onClick={handleClose}>
-      <div className="modal-content novo-servico-modal" onClick={(e) => e.stopPropagation()}>
+      <div ref={modalRef} className="modal-content novo-servico-modal" onClick={(e) => e.stopPropagation()}>
         <div className="modal-header">
           <h2 className="modal-title">Novo Serviço</h2>
           <button

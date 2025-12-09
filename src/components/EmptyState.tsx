@@ -1,7 +1,8 @@
+import type { ReactElement } from 'react'
 import './EmptyState.css'
 
 interface EmptyStateProps {
-  icon?: JSX.Element
+  icon?: ReactElement
   title: string
   message?: string
   actionLabel?: string

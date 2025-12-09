@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react'
-import Toast, { ToastType } from './Toast'
+import Toast, { type ToastType } from './Toast'
 import './ToastContainer.css'
 
 interface ToastItem {
@@ -17,9 +17,9 @@ export const useToast = () => {
   const showToast = useCallback((message: string, type: ToastType = 'info', duration?: number) => {
     const id = `toast-${++toastIdCounter}`
     const newToast: ToastItem = { id, message, type, duration }
-    
+
     setToasts((prev) => [...prev, newToast])
-    
+
     return id
   }, [])
 

@@ -15,13 +15,13 @@ function NovoCliente() {
   const formatPhone = (value: string): string => {
     // Remove tudo que não é número
     const numbers = value.replace(/\D/g, '')
-    
+
     // Limita a 11 dígitos
     const limited = numbers.slice(0, 11)
-    
+
     // Aplica máscara
     if (limited.length <= 10) {
-      return limited.replace(/(\d{2})(\d{4})(\d{0,4})/, (match, p1, p2, p3) => {
+      return limited.replace(/(\d{2})(\d{4})(\d{0,4})/, (_match, p1, p2, p3) => {
         if (p3) return `(${p1}) ${p2}-${p3}`
         if (p2) return `(${p1}) ${p2}`
         if (p1) return `(${p1}`
@@ -60,7 +60,7 @@ function NovoCliente() {
   const handleNomeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value
     setNome(value)
-    
+
     // Validação em tempo real
     if (errors.nome || value.trim()) {
       const error = validateNome(value)
@@ -72,7 +72,7 @@ function NovoCliente() {
     const value = e.target.value
     const formatted = formatPhone(value)
     setTelefone(formatted)
-    
+
     // Validação em tempo real
     if (errors.telefone || formatted) {
       const error = validateTelefone(formatted)
@@ -87,19 +87,19 @@ function NovoCliente() {
   const validateForm = (): boolean => {
     const nomeError = validateNome(nome)
     const telefoneError = validateTelefone(telefone)
-    
+
     const newErrors = {
       nome: nomeError,
       telefone: telefoneError,
     }
-    
+
     setErrors(newErrors)
     return !nomeError && !telefoneError
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    
+
     if (!validateForm()) {
       return
     }
@@ -115,15 +115,15 @@ function NovoCliente() {
         observacoes: observacoes.trim() || null,
         dataCadastro: new Date().toISOString(),
       })
-      
+
       // Mostrar sucesso
       setShowSuccess(true)
-      
+
       // Redirecionar após 1.5s
       setTimeout(() => {
         navigate('/clientes')
       }, 1500)
-      
+
     } catch (error) {
       alert('Erro ao cadastrar cliente. Tente novamente.')
       console.error(error)

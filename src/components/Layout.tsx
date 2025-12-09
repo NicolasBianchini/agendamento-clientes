@@ -44,7 +44,7 @@ function Layout({ userName }: LayoutProps) {
     setMobileMenuOpen(false)
   }
 
-  const getIcon = (iconName: string): JSX.Element | null => {
+  const getIcon = (iconName: string): React.JSX.Element | null => {
     const iconSize = 20
     const iconProps = {
       width: iconSize,
@@ -173,7 +173,7 @@ function Layout({ userName }: LayoutProps) {
         </div>
       </header>
 
-      <div className="layout-body">
+      <div className={`layout-body ${sidebarCollapsed ? 'sidebar-collapsed' : ''}`}>
         {/* Sidebar Desktop */}
         <aside className={`sidebar desktop-only ${sidebarCollapsed ? 'collapsed' : ''}`}>
           <nav className="sidebar-nav">

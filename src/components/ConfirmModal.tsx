@@ -1,3 +1,4 @@
+import { useKeyboardNavigation } from '../hooks/useKeyboardNavigation'
 import './ConfirmModal.css'
 
 interface ConfirmModalProps {
@@ -21,11 +22,16 @@ function ConfirmModal({
   onConfirm,
   onCancel,
 }: ConfirmModalProps) {
+  const modalRef = useKeyboardNavigation(isOpen, onCancel, {
+    closeOnEscape: true,
+    trapFocus: true,
+  })
+
   if (!isOpen) return null
 
   return (
     <div className="modal-overlay confirm-modal-overlay" onClick={onCancel}>
-      <div className="modal-content confirm-modal" onClick={(e) => e.stopPropagation()}>
+      <div ref={modalRef} className="modal-content confirm-modal" onClick={(e) => e.stopPropagation()}>
         <div className="confirm-modal-header">
           <h3 className="confirm-modal-title">{title}</h3>
         </div>

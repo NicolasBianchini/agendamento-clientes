@@ -3,14 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { agendamentosService } from '../services/firestore'
 import AgendaViewToggle from '../components/AgendaViewToggle'
 import AgendamentoModal from '../components/AgendamentoModal'
-import AgendamentoDetalhesModal from '../components/AgendamentoDetalhesModal'
 import './AgendaMes.css'
-
-interface AgendamentoCount {
-  date: string // YYYY-MM-DD
-  count: number
-  status: 'agendado' | 'concluido' | 'cancelado'
-}
 
 function AgendaMes() {
   const navigate = useNavigate()
@@ -36,21 +29,21 @@ function AgendaMes() {
       const month = selectedMonth.getMonth()
       const startDate = new Date(year, month, 1)
       const endDate = new Date(year, month + 1, 0)
-      
+
       const startDateStr = startDate.toISOString().split('T')[0]
       const endDateStr = endDate.toISOString().split('T')[0]
-      
+
       // Buscar agendamentos do mês no Firestore
       const agendamentosMes = await agendamentosService.getByDateRange(startDateStr, endDateStr)
-      
+
       // Contar agendamentos por dia
       const counts: Record<string, number> = {}
-      
+
       agendamentosMes.forEach((ag: any) => {
         const agDate = ag.data instanceof Date ? ag.data.toISOString().split('T')[0] : ag.data
         counts[agDate] = (counts[agDate] || 0) + 1
       })
-      
+
       setAgendamentosCount(counts)
     } catch (error) {
       console.error('Erro ao carregar agendamentos:', error)
@@ -82,47 +75,33 @@ function AgendaMes() {
     setSelectedMonth(new Date())
   }
 
-  const getDaysInMonth = (): Date[] => {
-    const year = selectedMonth.getFullYear()
-    const month = selectedMonth.getMonth()
-    const firstDay = new Date(year, month, 1)
-    const lastDay = new Date(year, month + 1, 0)
-    const daysInMonth = lastDay.getDate()
-    
-    const days: Date[] = []
-    for (let i = 1; i <= daysInMonth; i++) {
-      days.push(new Date(year, month, i))
-    }
-    return days
-  }
-
   const getCalendarDays = (): (Date | null)[] => {
     const year = selectedMonth.getFullYear()
     const month = selectedMonth.getMonth()
     const firstDay = new Date(year, month, 1)
     const lastDay = new Date(year, month + 1, 0)
-    
+
     // Get first day of week (Monday = 0)
     const startDay = firstDay.getDay() === 0 ? 6 : firstDay.getDay() - 1
     const daysInMonth = lastDay.getDate()
-    
+
     const days: (Date | null)[] = []
-    
+
     // Add empty cells for days before month starts
     for (let i = 0; i < startDay; i++) {
       days.push(null)
     }
-    
+
     // Add days of month
     for (let i = 1; i <= daysInMonth; i++) {
       days.push(new Date(year, month, i))
     }
-    
+
     // Fill remaining cells to complete grid (42 cells = 6 weeks)
     while (days.length < 42) {
       days.push(null)
     }
-    
+
     return days
   }
 
@@ -165,13 +144,13 @@ function AgendaMes() {
           <h1 className="agenda-title">Agenda</h1>
           <div className="agenda-header-actions">
             <AgendaViewToggle />
-          <button
-            className="btn-primary"
-            onClick={() => {
-              setModalInitialData({})
-              setShowAgendamentoModal(true)
-            }}
-          >
+            <button
+              className="btn-primary"
+              onClick={() => {
+                setModalInitialData({})
+                setShowAgendamentoModal(true)
+              }}
+            >
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <line x1="12" y1="5" x2="12" y2="19"></line>
                 <line x1="5" y1="12" x2="19" y2="12"></line>
@@ -188,7 +167,7 @@ function AgendaMes() {
             </svg>
             Mês Anterior
           </button>
-          
+
           <div className="date-display">
             <h2 className="date-text">{formatMonthYear(selectedMonth)}</h2>
           </div>

@@ -52,7 +52,7 @@ function DetalhesCliente() {
     try {
       // Buscar cliente no Firestore
       const clienteData = await clientesService.getById(id)
-      
+
       if (!clienteData) {
         setError('Cliente não encontrado')
         return
@@ -60,7 +60,7 @@ function DetalhesCliente() {
 
       // Formatar telefone para exibição
       const telefoneFormatado = formatPhone(clienteData.telefone || '')
-      
+
       setCliente({
         id: clienteData.id,
         nome: clienteData.nome,
@@ -82,17 +82,17 @@ function DetalhesCliente() {
     try {
       // Buscar agendamentos concluídos do cliente no Firestore
       const agendamentos = await agendamentosService.getByCliente(id)
-      
+
       // Filtrar apenas concluídos e buscar dados dos serviços
       const concluidos = agendamentos.filter((ag: any) => ag.status === 'concluido')
-      
+
       // Buscar dados dos serviços para cada agendamento
       const historicoCompleto = await Promise.all(
         concluidos.map(async (ag: any) => {
           // Buscar nome do serviço (se não estiver no agendamento)
           let servicoNome = ag.servicoNome || 'Serviço'
           let servicoValor = ag.servicoValor || 0
-          
+
           if (ag.servicoId) {
             try {
               const { servicosService } = await import('../services/firestore')
@@ -105,7 +105,7 @@ function DetalhesCliente() {
               console.error('Erro ao buscar serviço:', err)
             }
           }
-          
+
           return {
             id: ag.id,
             servicoNome,
@@ -317,7 +317,7 @@ function DetalhesCliente() {
             <h3 className="section-title">Histórico de Atendimentos</h3>
             <button
               className="btn-link"
-              onClick={() => navigate('/historico')}
+              onClick={() => navigate(`/historico?cliente=${cliente.nome}`)}
             >
               Ver histórico completo
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">

@@ -29,6 +29,9 @@ function AgendaDia() {
   const { config } = useConfiguracoes()
   const [selectedDate, setSelectedDate] = useState(new Date())
   const [agendamentos, setAgendamentos] = useState<Record<string, Agendamento[]>>({})
+  const [allAgendamentos, setAllAgendamentos] = useState<Record<string, Agendamento[]>>({})
+  const [clientes, setClientes] = useState<Array<{ id: string; nome: string }>>([])
+  const [servicos, setServicos] = useState<Array<{ id: string; nome: string }>>([])
   const [isLoading, setIsLoading] = useState(true)
   const [showAgendamentoModal, setShowAgendamentoModal] = useState(false)
   const [showDetalhesModal, setShowDetalhesModal] = useState(false)
@@ -39,31 +42,98 @@ function AgendaDia() {
     horario?: string | null
   }>({})
 
+  // Filtros
+  const [filtroStatus, setFiltroStatus] = useState<string>('todos')
+  const [filtroCliente, setFiltroCliente] = useState<string>('')
+  const [filtroServico, setFiltroServico] = useState<string>('')
+  const [buscaTexto, setBuscaTexto] = useState<string>('')
+  const [showFilters, setShowFilters] = useState(false)
+
   useEffect(() => {
     loadAgendamentos()
   }, [selectedDate, config]) // Recarregar quando configurações mudarem
+
+  useEffect(() => {
+    applyFilters(allAgendamentos)
+  }, [filtroStatus, filtroCliente, filtroServico, buscaTexto, allAgendamentos])
+
+  const applyFilters = (agendamentosData: Record<string, Agendamento[]>) => {
+    if (!agendamentosData || Object.keys(agendamentosData).length === 0) {
+      setAgendamentos({})
+      return
+    }
+
+    const filtered: Record<string, Agendamento[]> = {}
+
+    Object.keys(agendamentosData).forEach((horario) => {
+      const ags = agendamentosData[horario].filter((ag) => {
+        // Filtro por status
+        if (filtroStatus !== 'todos' && ag.status !== filtroStatus) {
+          return false
+        }
+
+        // Filtro por cliente
+        if (filtroCliente && ag.clienteId !== filtroCliente) {
+          return false
+        }
+
+        // Filtro por serviço
+        if (filtroServico && ag.servicoId !== filtroServico) {
+          return false
+        }
+
+        // Busca por texto (nome do cliente ou serviço)
+        if (buscaTexto) {
+          const buscaLower = buscaTexto.toLowerCase()
+          const clienteMatch = ag.cliente.toLowerCase().includes(buscaLower)
+          const servicoMatch = ag.servico.toLowerCase().includes(buscaLower)
+          if (!clienteMatch && !servicoMatch) {
+            return false
+          }
+        }
+
+        return true
+      })
+
+      if (ags.length > 0) {
+        filtered[horario] = ags
+      }
+    })
+
+    setAgendamentos(filtered)
+  }
+
+  const clearFilters = () => {
+    setFiltroStatus('todos')
+    setFiltroCliente('')
+    setFiltroServico('')
+    setBuscaTexto('')
+  }
 
   const loadAgendamentos = async () => {
     setIsLoading(true)
     try {
       // Formatar data para busca
       const dateStr = selectedDate.toISOString().split('T')[0]
-      
+
       // Buscar agendamentos do dia no Firestore
       const agendamentosDoDia = await agendamentosService.getByDate(dateStr)
       console.log('🔍 Agendamentos do dia:', agendamentosDoDia.length, agendamentosDoDia)
-      
+
       // Buscar dados de clientes e serviços
-      const [clientes, servicos] = await Promise.all([
+      const [clientesData, servicosData] = await Promise.all([
         clientesService.getAll(),
         servicosService.getAll(),
       ])
-      
+
+      setClientes(clientesData.map((c: any) => ({ id: c.id, nome: c.nome })))
+      setServicos(servicosData.map((s: any) => ({ id: s.id, nome: s.nome })))
+
       // Primeiro, mapear todos os agendamentos com dados completos
       const todosAgendamentos: Agendamento[] = agendamentosDoDia.map((ag: any) => {
-        const cliente = clientes.find((c: any) => c.id === ag.clienteId)
-        const servico = servicos.find((s: any) => s.id === ag.servicoId)
-        
+        const cliente = clientesData.find((c: any) => c.id === ag.clienteId)
+        const servico = servicosData.find((s: any) => s.id === ag.servicoId)
+
         return {
           id: ag.id,
           cliente: cliente?.nome || 'Cliente',
@@ -74,25 +144,25 @@ function AgendaDia() {
           servicoId: ag.servicoId,
         }
       })
-      
+
       // Ordenar por horário
       todosAgendamentos.sort((a, b) => a.horario.localeCompare(b.horario))
-      
+
       // Agrupar agendamentos consecutivos do mesmo cliente e serviço
       const agendamentosAgrupados: (Agendamento | AgendamentoAgrupado)[] = []
       const processados = new Set<string>()
-      
+
       for (let i = 0; i < todosAgendamentos.length; i++) {
         if (processados.has(todosAgendamentos[i].id)) continue
-        
+
         const agendamentoAtual = todosAgendamentos[i]
         const grupo: Agendamento[] = [agendamentoAtual]
         processados.add(agendamentoAtual.id)
-        
+
         // Verificar se há agendamentos consecutivos (mesmo cliente, serviço, diferença de 30 minutos)
         for (let j = i + 1; j < todosAgendamentos.length; j++) {
           const proximo = todosAgendamentos[j]
-          
+
           if (
             !processados.has(proximo.id) &&
             proximo.clienteId === agendamentoAtual.clienteId &&
@@ -101,15 +171,14 @@ function AgendaDia() {
             // Verificar se é consecutivo (diferença de 30 minutos)
             const horarioAtual = agendamentoAtual.horario.split(':').map(Number)
             const horarioProximo = proximo.horario.split(':').map(Number)
-            
+
             if (horarioAtual.length === 2 && horarioProximo.length === 2) {
-              const minutosAtual = horarioAtual[0] * 60 + horarioAtual[1]
               const minutosProximo = horarioProximo[0] * 60 + horarioProximo[1]
-              
+
               // Verificar se o último horário do grupo é 30 minutos antes do próximo
               const ultimoHorario = grupo[grupo.length - 1].horario.split(':').map(Number)
               const minutosUltimo = ultimoHorario[0] * 60 + ultimoHorario[1]
-              
+
               if (minutosProximo - minutosUltimo === 30) {
                 grupo.push(proximo)
                 processados.add(proximo.id)
@@ -123,7 +192,7 @@ function AgendaDia() {
             break
           }
         }
-        
+
         // Se houver múltiplos agendamentos, criar um grupo
         if (grupo.length > 1) {
           agendamentosAgrupados.push({
@@ -139,10 +208,10 @@ function AgendaDia() {
           agendamentosAgrupados.push(grupo[0])
         }
       }
-      
+
       // Organizar por horário para exibição
       const agendamentosPorHorario: Record<string, (Agendamento | AgendamentoAgrupado)[]> = {}
-      
+
       agendamentosAgrupados.forEach((ag) => {
         if ('isAgrupado' in ag && ag.isAgrupado) {
           // Para agendamentos agrupados, adicionar ao primeiro horário
@@ -162,9 +231,10 @@ function AgendaDia() {
           }
         }
       })
-      
+
       console.log('📋 Agendamentos por horário (agrupados):', agendamentosPorHorario)
-      setAgendamentos(agendamentosPorHorario as any)
+      setAllAgendamentos(agendamentosPorHorario as any)
+      applyFilters(agendamentosPorHorario as any)
     } catch (error) {
       console.error('Erro ao carregar agendamentos:', error)
     } finally {
@@ -185,7 +255,7 @@ function AgendaDia() {
     const day = date.toLocaleDateString('pt-BR', { day: '2-digit' })
     const month = date.toLocaleDateString('pt-BR', { month: 'long' })
     const year = date.toLocaleDateString('pt-BR', { year: 'numeric' })
-    
+
     return `${weekday.charAt(0).toUpperCase() + weekday.slice(1)}, ${day} de ${month} de ${year}`
   }
 
@@ -218,23 +288,23 @@ function AgendaDia() {
     if (!isToday(selectedDate)) {
       return selectedDate < new Date()
     }
-    
+
     const [hours, minutes] = time.split(':').map(Number)
     const now = new Date()
     const timeDate = new Date(selectedDate)
     timeDate.setHours(hours, minutes, 0, 0)
-    
+
     return timeDate < now
   }
 
   const isCurrent = (time: string): boolean => {
     if (!isToday(selectedDate)) return false
-    
+
     const [hours, minutes] = time.split(':').map(Number)
     const now = new Date()
     const timeDate = new Date(selectedDate)
     timeDate.setHours(hours, minutes, 0, 0)
-    
+
     const diff = Math.abs(now.getTime() - timeDate.getTime())
     return diff < 30 * 60 * 1000 // 30 minutos
   }
@@ -243,13 +313,13 @@ function AgendaDia() {
   const timeSlots = useMemo(() => {
     if (!config) {
       // Valores padrão enquanto carrega
-    const slots: string[] = []
+      const slots: string[] = []
       for (let hour = 6; hour <= 23; hour++) {
-      slots.push(`${hour.toString().padStart(2, '0')}:00`)
-      slots.push(`${hour.toString().padStart(2, '0')}:30`)
+        slots.push(`${hour.toString().padStart(2, '0')}:00`)
+        slots.push(`${hour.toString().padStart(2, '0')}:30`)
+      }
+      return slots
     }
-    return slots
-  }
 
     const slots: string[] = []
     const [startHour, startMinute] = config.horarioInicial.split(':').map(Number)
@@ -303,14 +373,14 @@ function AgendaDia() {
           <h1 className="agenda-title">Agenda</h1>
           <div className="agenda-header-actions">
             <AgendaViewToggle />
-          <button
-            className="btn-primary"
-            onClick={() => {
-              const dateStr = selectedDate.toISOString().split('T')[0]
-              setModalInitialData({ data: dateStr })
-              setShowAgendamentoModal(true)
-            }}
-          >
+            <button
+              className="btn-primary"
+              onClick={() => {
+                const dateStr = selectedDate.toISOString().split('T')[0]
+                setModalInitialData({ data: dateStr })
+                setShowAgendamentoModal(true)
+              }}
+            >
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <line x1="12" y1="5" x2="12" y2="19"></line>
                 <line x1="5" y1="12" x2="19" y2="12"></line>
@@ -320,6 +390,97 @@ function AgendaDia() {
           </div>
         </div>
 
+        {/* Filtros */}
+        <div className="agenda-filters-section">
+          <button
+            className="btn-filter-toggle"
+            onClick={() => setShowFilters(!showFilters)}
+          >
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon>
+            </svg>
+            Filtros
+            {(filtroStatus !== 'todos' || filtroCliente || filtroServico || buscaTexto) && (
+              <span className="filter-badge">
+                {[filtroStatus !== 'todos' ? 1 : 0, filtroCliente ? 1 : 0, filtroServico ? 1 : 0, buscaTexto ? 1 : 0].reduce((a, b) => a + b, 0)}
+              </span>
+            )}
+          </button>
+
+          {showFilters && (
+            <div className="filters-panel">
+              <div className="filters-grid">
+                <div className="filter-group">
+                  <label htmlFor="filtro-status" className="filter-label">Status</label>
+                  <select
+                    id="filtro-status"
+                    className="filter-select"
+                    value={filtroStatus}
+                    onChange={(e) => setFiltroStatus(e.target.value)}
+                  >
+                    <option value="todos">Todos</option>
+                    <option value="agendado">Agendado</option>
+                    <option value="concluido">Concluído</option>
+                    <option value="cancelado">Cancelado</option>
+                  </select>
+                </div>
+
+                <div className="filter-group">
+                  <label htmlFor="filtro-cliente" className="filter-label">Cliente</label>
+                  <select
+                    id="filtro-cliente"
+                    className="filter-select"
+                    value={filtroCliente}
+                    onChange={(e) => setFiltroCliente(e.target.value)}
+                  >
+                    <option value="">Todos os clientes</option>
+                    {clientes.map((cliente) => (
+                      <option key={cliente.id} value={cliente.id}>
+                        {cliente.nome}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="filter-group">
+                  <label htmlFor="filtro-servico" className="filter-label">Serviço</label>
+                  <select
+                    id="filtro-servico"
+                    className="filter-select"
+                    value={filtroServico}
+                    onChange={(e) => setFiltroServico(e.target.value)}
+                  >
+                    <option value="">Todos os serviços</option>
+                    {servicos.map((servico) => (
+                      <option key={servico.id} value={servico.id}>
+                        {servico.nome}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="filter-group filter-group-full">
+                  <label htmlFor="busca-texto" className="filter-label">Buscar</label>
+                  <input
+                    type="text"
+                    id="busca-texto"
+                    className="filter-input"
+                    placeholder="Buscar por cliente ou serviço..."
+                    value={buscaTexto}
+                    onChange={(e) => setBuscaTexto(e.target.value)}
+                  />
+                </div>
+              </div>
+
+              {(filtroStatus !== 'todos' || filtroCliente || filtroServico || buscaTexto) && (
+                <button className="btn-clear-filters" onClick={clearFilters}>
+                  Limpar Filtros
+                </button>
+              )}
+            </div>
+          )}
+        </div>
+
         <div className="agenda-date-controls">
           <button className="btn-nav" onClick={goToPreviousDay}>
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -327,7 +488,7 @@ function AgendaDia() {
             </svg>
             Dia Anterior
           </button>
-          
+
           <div className="date-display">
             <h2 className="date-text">{formatDateHeader(selectedDate)}</h2>
             <span className="date-formatted">{formatDate(selectedDate)}</span>
@@ -358,7 +519,7 @@ function AgendaDia() {
           {timeSlots.map((time) => {
             const agendamentosNoHorario = agendamentos[time] || []
             const temAgendamento = agendamentosNoHorario.length > 0
-            
+
             // Verificar se este horário está ocupado por um agendamento agrupado que começa em outro horário
             let ocupadoPorAgrupado = false
             if (!temAgendamento) {
@@ -367,7 +528,7 @@ function AgendaDia() {
                 const ags = agendamentos[horarioKey]
                 for (const ag of ags) {
                   if ('isAgrupado' in ag && ag.isAgrupado) {
-                    const agrupado = ag as AgendamentoAgrupado
+                    const agrupado = ag as unknown as AgendamentoAgrupado
                     if (agrupado.horarios.includes(time) && agrupado.horarios[0] !== time) {
                       ocupadoPorAgrupado = true
                       break
@@ -377,7 +538,7 @@ function AgendaDia() {
                 if (ocupadoPorAgrupado) break
               }
             }
-            
+
             const past = isPast(time)
             const current = isCurrent(time)
             const temAlgumAgendamento = temAgendamento || ocupadoPorAgrupado
@@ -394,15 +555,15 @@ function AgendaDia() {
                     {agendamentosNoHorario.map((agendamento, index) => {
                       // Verificar se é um agendamento agrupado
                       const isAgrupado = 'isAgrupado' in agendamento && agendamento.isAgrupado
-                      
+
                       if (isAgrupado) {
-                        const agrupado = agendamento as AgendamentoAgrupado
+                        const agrupado = agendamento as unknown as AgendamentoAgrupado
                         const primeiroHorario = agrupado.horarios[0]
                         const ultimoHorario = agrupado.horarios[agrupado.horarios.length - 1]
                         const horarioDisplay = agrupado.horarios.length > 1
                           ? `${primeiroHorario} - ${ultimoHorario}`
                           : primeiroHorario
-                        
+
                         return (
                           <div
                             key={`agrupado-${agrupado.ids.join('-')}-${index}`}
@@ -491,7 +652,7 @@ function AgendaDia() {
           // TODO: Abrir modal de edição
           console.log('Editar agendamento:', id)
         }}
-        onDelete={(id) => {
+        onDelete={() => {
           loadAgendamentos()
         }}
         onStatusChange={() => {

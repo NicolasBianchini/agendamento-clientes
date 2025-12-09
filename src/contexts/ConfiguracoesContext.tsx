@@ -1,4 +1,5 @@
-import { createContext, useContext, useState, useEffect, ReactNode } from 'react'
+import { createContext, useContext, useState, useEffect } from 'react'
+import type { ReactNode } from 'react'
 import { configuracoesService } from '../services/firestore'
 import type { ConfiguracoesUsuario } from '../types/configuracoes'
 
@@ -35,6 +36,7 @@ export function ConfiguracoesProvider({ children }: { children: ReactNode }) {
         moeda: 'BRL',
         formatoData: 'DD/MM/YYYY',
         formatoHora: '24h',
+        mensagensAutomaticas: false,
       })
     } finally {
       setLoading(false)

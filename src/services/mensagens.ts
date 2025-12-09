@@ -1,4 +1,4 @@
-import { formatarData, formatarHora, formatarMoeda } from '../utils/formatacao'
+import { formatarData, formatarMoeda } from '../utils/formatacao'
 import type { ConfiguracoesUsuario } from '../types/configuracoes'
 
 interface DadosAgendamento {

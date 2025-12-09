@@ -2,7 +2,8 @@ import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { agendamentosService, clientesService, servicosService } from '../services/firestore'
 import { useConfiguracoes } from '../hooks/useConfiguracoes'
-import { formatarMoeda, formatarData, formatarHora, formatarDataHora } from '../utils/formatacao'
+import { formatarMoeda } from '../utils/formatacao'
+import { useKeyboardNavigation } from '../hooks/useKeyboardNavigation'
 import './AgendamentoDetalhesModal.css'
 
 interface AgendamentoDetalhes {
@@ -515,11 +516,16 @@ function AgendamentoDetalhesModal({
     return <span className={`status-badge ${config.class}`}>{config.label}</span>
   }
 
+  const modalRef = useKeyboardNavigation(isOpen, onClose, {
+    closeOnEscape: true,
+    trapFocus: true,
+  })
+
   if (!isOpen) return null
 
   return (
     <div className="modal-overlay agendamento-detalhes-overlay" onClick={onClose}>
-      <div className="modal-content agendamento-detalhes-modal" onClick={(e) => e.stopPropagation()}>
+      <div ref={modalRef} className="modal-content agendamento-detalhes-modal" onClick={(e) => e.stopPropagation()}>
         <div className="modal-header">
           <h2 className="modal-title">Detalhes do Agendamento</h2>
           <button

@@ -23,30 +23,11 @@ function Login() {
     return emailRegex.test(email)
   }
 
-  const validateForm = (): boolean => {
-    const newErrors: { email?: string; password?: string } = {}
-
-    if (!email.trim()) {
-      newErrors.email = 'E-mail é obrigatório'
-    } else if (!validateEmail(email)) {
-      newErrors.email = 'E-mail inválido'
-    }
-
-    const passwordTrimmed = password.trim()
-    if (!passwordTrimmed) {
-      newErrors.password = 'Senha é obrigatória'
-    } else if (passwordTrimmed.length < 6) {
-      newErrors.password = 'Senha deve ter no mínimo 6 caracteres'
-    }
-
-    setErrors(newErrors)
-    return Object.keys(newErrors).length === 0
-  }
 
   const handleEmailChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value
     setEmail(value)
-    
+
     // Validação em tempo real
     if (errors.email) {
       if (!value.trim()) {
@@ -62,7 +43,7 @@ function Login() {
   const handlePasswordChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value
     setPassword(value)
-    
+
     // Limpar erro de senha imediatamente se tiver 6 ou mais caracteres
     if (value.trim().length >= 6) {
       setErrors(prev => {
@@ -77,7 +58,7 @@ function Login() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    
+
     // Limpar todos os erros antes de validar
     setErrors({})
 
@@ -87,12 +68,12 @@ function Login() {
       setErrors({ email: 'E-mail é obrigatório' })
       return
     }
-    
+
     if (!passwordTrimmed) {
       setErrors({ password: 'Senha é obrigatória' })
       return
     }
-    
+
     if (passwordTrimmed.length < 6) {
       setErrors({ password: 'Senha deve ter no mínimo 6 caracteres' })
       return
@@ -102,11 +83,11 @@ function Login() {
 
     try {
       // Autenticar com Firestore
-      const usuario = await login({ email, senha: password })
-      
+      await login({ email, senha: password })
+
       // Login bem-sucedido - redirecionar para o dashboard
       navigate('/dashboard')
-      
+
     } catch (error: any) {
       console.error('❌ Erro no login:', error)
       // Exibir mensagem de erro

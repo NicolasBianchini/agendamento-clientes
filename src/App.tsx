@@ -1,25 +1,30 @@
+import { lazy, Suspense } from 'react'
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { ConfiguracoesProvider } from './contexts/ConfiguracoesContext'
 import { TemaProvider } from './components/TemaProvider'
-import Login from './pages/Login'
 import Layout from './components/Layout'
-import Dashboard from './pages/Dashboard'
-import Clientes from './pages/Clientes'
-import NovoCliente from './pages/NovoCliente'
-import DetalhesCliente from './pages/DetalhesCliente'
-import Servicos from './pages/Servicos'
-import AgendaDia from './pages/AgendaDia'
-import AgendaSemana from './pages/AgendaSemana'
-import AgendaMes from './pages/AgendaMes'
-import Historico from './pages/Historico'
-import Configuracoes from './pages/Configuracoes'
-import RedirectAgenda from './components/RedirectAgenda'
+import LoadingSpinner from './components/LoadingSpinner'
+
+// Lazy loading de páginas
+const Login = lazy(() => import('./pages/Login'))
+const Dashboard = lazy(() => import('./pages/Dashboard'))
+const Clientes = lazy(() => import('./pages/Clientes'))
+const NovoCliente = lazy(() => import('./pages/NovoCliente'))
+const DetalhesCliente = lazy(() => import('./pages/DetalhesCliente'))
+const Servicos = lazy(() => import('./pages/Servicos'))
+const AgendaDia = lazy(() => import('./pages/AgendaDia'))
+const AgendaSemana = lazy(() => import('./pages/AgendaSemana'))
+const AgendaMes = lazy(() => import('./pages/AgendaMes'))
+const Historico = lazy(() => import('./pages/Historico'))
+const Configuracoes = lazy(() => import('./pages/Configuracoes'))
+const RedirectAgenda = lazy(() => import('./components/RedirectAgenda'))
 
 function App() {
   return (
     <ConfiguracoesProvider>
       <TemaProvider>
         <BrowserRouter>
+          <Suspense fallback={<LoadingSpinner />}>
           <Routes>
             <Route path="/login" element={<Login />} />
             <Route path="/" element={<Navigate to="/login" replace />} />
@@ -39,6 +44,7 @@ function App() {
               <Route path="/configuracoes" element={<Configuracoes />} />
             </Route>
           </Routes>
+          </Suspense>
         </BrowserRouter>
       </TemaProvider>
     </ConfiguracoesProvider>

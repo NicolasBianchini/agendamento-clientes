@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { clientesService } from '../services/firestore'
+import { useKeyboardNavigation } from '../hooks/useKeyboardNavigation'
 import './NovoClienteModal.css'
 
 interface NovoClienteModalProps {
@@ -25,7 +26,7 @@ function NovoClienteModal({ isOpen, onClose, onSuccess }: NovoClienteModalProps)
     
     // Aplica máscara
     if (limited.length <= 10) {
-      return limited.replace(/(\d{2})(\d{4})(\d{0,4})/, (match, p1, p2, p3) => {
+      return limited.replace(/(\d{2})(\d{4})(\d{0,4})/, (_match, p1, p2, p3) => {
         if (p3) return `(${p1}) ${p2}-${p3}`
         if (p2) return `(${p1}) ${p2}`
         if (p1) return `(${p1}`
@@ -156,11 +157,16 @@ function NovoClienteModal({ isOpen, onClose, onSuccess }: NovoClienteModalProps)
 
   const isFormValid = nome.trim() && telefone.replace(/\D/g, '').length >= 10 && !errors.nome && !errors.telefone
 
+  const modalRef = useKeyboardNavigation(isOpen, handleClose, {
+    closeOnEscape: true,
+    trapFocus: true,
+  })
+
   if (!isOpen) return null
 
   return (
     <div className="modal-overlay novo-cliente-overlay" onClick={handleClose}>
-      <div className="modal-content novo-cliente-modal" onClick={(e) => e.stopPropagation()}>
+      <div ref={modalRef} className="modal-content novo-cliente-modal" onClick={(e) => e.stopPropagation()}>
         <div className="modal-header">
           <h2 className="modal-title">Novo Cliente</h2>
           <button

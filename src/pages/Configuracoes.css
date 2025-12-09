@@ -6,7 +6,7 @@
 
 .configuracoes-header {
   margin-bottom: 2.5rem;
-  padding-bottom: 1.5rem;
+  padding: 0 0 1.5rem 0;
   border-bottom: 1px solid #e5e7eb;
 }
 
@@ -25,6 +25,9 @@
   margin-bottom: 0.75rem;
   letter-spacing: -0.025em;
   transition: color 0.3s ease;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+  line-height: 1.3;
 }
 
 .configuracoes-header .subtitle {
@@ -404,18 +407,89 @@
 /* Responsive */
 @media (max-width: 768px) {
   .configuracoes-page {
-    padding: 1rem;
+    padding: 0;
+  }
+
+  .configuracoes-header {
+    margin-bottom: 1.5rem;
+    padding: 0 0.5rem 1rem 0.5rem;
+  }
+
+  .configuracoes-header h1 {
+    font-size: 1.5rem;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+    line-height: 1.3;
+  }
+
+  .configuracoes-header .subtitle {
+    font-size: 0.9375rem;
+  }
+
+  .header-content {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 1rem;
+  }
+
+  .btn-save-fixed {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .configuracoes-content {
+    gap: 1.5rem;
+    margin-bottom: 1.5rem;
+    padding: 0 0.5rem;
+  }
+
+  .config-section {
+    padding: 1.5rem 1rem;
+  }
+
+  .section-title {
+    font-size: 1.125rem;
+    margin-bottom: 1.5rem;
+    padding-bottom: 0.75rem;
   }
 
   .config-grid {
     grid-template-columns: 1fr;
+    gap: 1.5rem;
+  }
+
+  .config-field {
+    padding: 1rem;
   }
 
   .configuracoes-actions {
     flex-direction: column-reverse;
+    padding: 1.5rem 1rem;
+    margin: 1.5rem 0.5rem 0 0.5rem;
+    gap: 0.75rem;
   }
 
   .configuracoes-actions button {
     width: 100%;
+    box-sizing: border-box;
+  }
+}
+
+@media (max-width: 480px) {
+  .configuracoes-header h1 {
+    font-size: 1.25rem;
+  }
+
+  .config-section {
+    padding: 1.25rem 0.875rem;
+  }
+
+  .config-field {
+    padding: 0.875rem;
+  }
+
+  .configuracoes-actions {
+    padding: 1.25rem 0.875rem;
+    margin: 1.25rem 0.25rem 0 0.25rem;
   }
 }

@@ -7,7 +7,7 @@
   --color-white: #FFFFFF;
   --color-gray-light: #FAFAFA; /* Cinza Gelo */
   --color-gray-medium: #BFBFBF; /* Cinza Médio */
-  --color-black-soft: #2C2C2C; /* Antracite */
+  --color-black-soft: #1A1A1A; /* Antracite - Melhor contraste (WCAG AA) */
   
   /* Cores de Destaque */
   --color-accent: #ED5BA5; /* Rosa Magenta */
@@ -22,8 +22,8 @@
   --background: var(--color-gray-light);
   --background-card: var(--color-white);
   --text-primary: var(--color-black-soft);
-  --text-secondary: var(--color-gray-medium);
-  --border-color: #e5e7eb;
+  --text-secondary: #6B7280; /* Melhor contraste (WCAG AA) */
+  --border-color: #E5E7EB; /* Melhor contraste */
 }
 
 /* Tema Escuro */

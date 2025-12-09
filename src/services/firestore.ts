@@ -17,6 +17,7 @@ import {
 import { db } from '../config/firebase'
 import { getUserSession } from './auth'
 import type { ConfiguracoesUsuario } from '../types/configuracoes'
+import { getCache, setCache, removeCache } from './cache'
 
 // Tipos auxiliares
 export type FirestoreTimestamp = Timestamp
@@ -27,7 +28,7 @@ export const toFirestoreDate = (date: Date | string): Timestamp => {
   if (date instanceof Date) {
     return Timestamp.fromDate(date)
   }
-  
+
   // Se for uma string no formato YYYY-MM-DD, criar data no timezone local
   // para evitar problemas de conversão que mudam o dia
   if (typeof date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(date)) {
@@ -37,7 +38,7 @@ export const toFirestoreDate = (date: Date | string): Timestamp => {
     console.log(`📅 Convertendo data string "${date}" para Date local:`, localDate.toISOString())
     return Timestamp.fromDate(localDate)
   }
-  
+
   // Para outros formatos de string, usar conversão padrão
   return Timestamp.fromDate(new Date(date))
 }
@@ -68,7 +69,7 @@ export const getDocument = async <T = any>(
     const userId = getCurrentUserId()
     const docRef = doc(db, collectionName, documentId)
     const docSnap = await getDoc(docRef)
-    
+
     if (docSnap.exists()) {
       const data = docSnap.data()
       // Verificar se o documento pertence ao usuário atual
@@ -89,9 +90,21 @@ export const getDocument = async <T = any>(
  */
 export const getDocuments = async <T = any>(
   collectionName: string,
-  constraints: QueryConstraint[] = []
+  constraints: QueryConstraint[] = [],
+  useCache: boolean = true
 ): Promise<T[]> => {
   try {
+    // Criar chave de cache baseada na coleção e constraints
+    const cacheKey = `${collectionName}_${JSON.stringify(constraints)}`
+
+    // Tentar recuperar do cache (apenas para getAll sem filtros complexos)
+    if (useCache && constraints.length <= 1) {
+      const cached = getCache<T[]>(cacheKey)
+      if (cached) {
+        return cached
+      }
+    }
+
     const userId = getCurrentUserId()
     // Adicionar filtro de userId no início das constraints
     const q = query(
@@ -100,11 +113,17 @@ export const getDocuments = async <T = any>(
       ...constraints
     )
     const querySnapshot = await getDocs(q)
-    
-    return querySnapshot.docs.map((doc) => ({
+    const results = querySnapshot.docs.map((doc) => ({
       id: doc.id,
       ...doc.data(),
     })) as T[]
+
+    // Salvar no cache (apenas para getAll sem filtros complexos)
+    if (useCache && constraints.length <= 1) {
+      setCache(cacheKey, results, 5 * 60 * 1000) // 5 minutos
+    }
+
+    return results
   } catch (error) {
     console.error(`Erro ao buscar documentos de ${collectionName}:`, error)
     throw error
@@ -125,10 +144,30 @@ export const createDocument = async <T = any>(
       ...data,
       userId,
     } as any)
+
+    // Invalidar cache da coleção
+    clearCollectionCache(collectionName)
+
     return docRef.id
   } catch (error) {
     console.error(`Erro ao criar documento em ${collectionName}:`, error)
     throw error
+  }
+}
+
+/**
+ * Limpa o cache de uma coleção específica
+ */
+function clearCollectionCache(collectionName: string): void {
+  try {
+    const keys = Object.keys(localStorage)
+    keys.forEach((key) => {
+      if (key.includes(collectionName)) {
+        removeCache(key.replace('agendamento_cache_', ''))
+      }
+    })
+  } catch (error) {
+    console.warn('Erro ao limpar cache da coleção:', error)
   }
 }
 
@@ -155,6 +194,9 @@ export const updateDocument = async <T = any>(
     }
 
     await updateDoc(docRef, data as any)
+
+    // Invalidar cache da coleção
+    clearCollectionCache(collectionName)
   } catch (error) {
     console.error(`Erro ao atualizar documento ${documentId} em ${collectionName}:`, error)
     throw error
@@ -183,6 +225,9 @@ export const deleteDocument = async (
     }
 
     await deleteDoc(docRef)
+
+    // Invalidar cache da coleção
+    clearCollectionCache(collectionName)
   } catch (error) {
     console.error(`Erro ao excluir documento ${documentId} de ${collectionName}:`, error)
     throw error
@@ -196,18 +241,18 @@ export const deleteDocument = async (
  */
 export const clientesService = {
   collection: 'clientes',
-  
+
   getAll: () => getDocuments('clientes'),
-  
+
   getById: (id: string) => getDocument('clientes', id),
-  
+
   create: (data: Omit<any, 'id'>) => createDocument('clientes', data),
-  
-  update: (id: string, data: Partial<Omit<any, 'id'>>) => 
+
+  update: (id: string, data: Partial<Omit<any, 'id'>>) =>
     updateDocument('clientes', id, data),
-  
+
   delete: (id: string) => deleteDocument('clientes', id),
-  
+
   search: async (searchTerm: string) => {
     const userId = getCurrentUserId()
     const constraints = [
@@ -231,21 +276,21 @@ export const clientesService = {
  */
 export const servicosService = {
   collection: 'servicos',
-  
+
   getAll: () => getDocuments('servicos', [orderBy('nome')]),
-  
+
   getById: (id: string) => getDocument('servicos', id),
-  
+
   getActive: () => getDocuments('servicos', [
     where('ativo', '==', true),
     orderBy('nome'),
   ]),
-  
+
   create: (data: Omit<any, 'id'>) => createDocument('servicos', data),
-  
-  update: (id: string, data: Partial<Omit<any, 'id'>>) => 
+
+  update: (id: string, data: Partial<Omit<any, 'id'>>) =>
     updateDocument('servicos', id, data),
-  
+
   delete: (id: string) => deleteDocument('servicos', id),
 }
 
@@ -254,11 +299,11 @@ export const servicosService = {
  */
 export const agendamentosService = {
   collection: 'agendamentos',
-  
+
   getAll: () => getDocuments('agendamentos', [orderBy('data', 'desc'), orderBy('horario', 'desc')]),
-  
+
   getById: (id: string) => getDocument('agendamentos', id),
-  
+
   getByDate: async (date: string | Date) => {
     // Converter para string YYYY-MM-DD se necessário
     let dateStr: string
@@ -269,22 +314,22 @@ export const agendamentosService = {
     } else {
       throw new Error('Data inválida')
     }
-    
+
     console.log('🔍 getByDate chamado com:', date, '-> formatado como:', dateStr)
-    
+
     // Converter string YYYY-MM-DD para Date (usando UTC para evitar problemas de timezone)
     const [year, month, day] = dateStr.split('-').map(Number)
     // Usar UTC para garantir consistência
     const startOfDay = new Date(Date.UTC(year, month - 1, day, 0, 0, 0, 0))
     const endOfDay = new Date(Date.UTC(year, month - 1, day, 23, 59, 59, 999))
-    
+
     // Também criar versões locais para comparação
     const startOfDayLocal = new Date(year, month - 1, day, 0, 0, 0, 0)
     const endOfDayLocal = new Date(year, month - 1, day, 23, 59, 59, 999)
-    
+
     console.log('📅 Range de busca - UTC:', startOfDay.toISOString(), 'até', endOfDay.toISOString())
     console.log('📅 Range de busca - Local:', startOfDayLocal.toISOString(), 'até', endOfDayLocal.toISOString())
-    
+
     // Usar a versão local (como estava antes) para manter compatibilidade
     // O filtro de userId já é adicionado automaticamente em getDocuments
     const resultados = await getDocuments('agendamentos', [
@@ -293,18 +338,18 @@ export const agendamentosService = {
       orderBy('data'),
       orderBy('horario'),
     ])
-    
+
     console.log('📊 getByDate retornou', resultados.length, 'agendamento(s)')
-    
+
     return resultados
   },
-  
+
   getByDateRange: async (startDate: string, endDate: string) => {
     const start = new Date(startDate)
     start.setHours(0, 0, 0, 0)
     const end = new Date(endDate)
     end.setHours(23, 59, 59, 999)
-    
+
     return getDocuments('agendamentos', [
       where('data', '>=', Timestamp.fromDate(start)),
       where('data', '<=', Timestamp.fromDate(end)),
@@ -312,7 +357,7 @@ export const agendamentosService = {
       orderBy('horario'),
     ])
   },
-  
+
   getByCliente: async (clienteId: string) => {
     // O filtro de userId já é adicionado automaticamente em getDocuments
     return getDocuments('agendamentos', [
@@ -321,7 +366,7 @@ export const agendamentosService = {
       orderBy('horario', 'desc'),
     ])
   },
-  
+
   getByStatus: async (status: 'agendado' | 'concluido' | 'cancelado') => {
     return getDocuments('agendamentos', [
       where('status', '==', status),
@@ -329,23 +374,23 @@ export const agendamentosService = {
       orderBy('horario', 'desc'),
     ])
   },
-  
+
   getConcluidos: () => agendamentosService.getByStatus('concluido'),
-  
+
   create: (data: Omit<any, 'id'>) => createDocument('agendamentos', data),
-  
-  update: (id: string, data: Partial<Omit<any, 'id'>>) => 
+
+  update: (id: string, data: Partial<Omit<any, 'id'>>) =>
     updateDocument('agendamentos', id, data),
-  
+
   delete: (id: string) => deleteDocument('agendamentos', id),
-  
+
   checkTimeConflict: async (data: string, horario: string, excludeId?: string) => {
     // getByDate já filtra por userId automaticamente
     const agendamentos = await agendamentosService.getByDate(data)
     return agendamentos.some(
-      (ag: any) => 
-        ag.horario === horario && 
-        ag.status === 'agendado' && 
+      (ag: any) =>
+        ag.horario === horario &&
+        ag.status === 'agendado' &&
         ag.id !== excludeId
     )
   },

@@ -32,6 +32,9 @@
   font-weight: 700;
   color: var(--color-black-soft);
   margin: 0;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+  line-height: 1.3;
 }
 
 .confirm-modal-body {
@@ -123,17 +126,50 @@
 }
 
 @media (max-width: 768px) {
+  .confirm-overlay {
+    padding: 0.5rem;
+  }
+
   .confirm-modal {
     max-width: 100%;
+    margin: 0;
+    padding: 1.5rem 1rem;
+  }
+
+  .confirm-modal-title {
+    font-size: 1.25rem;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+    line-height: 1.3;
+  }
+
+  .confirm-modal-message {
+    font-size: 0.9375rem;
   }
 
   .confirm-modal-actions {
     flex-direction: column-reverse;
+    gap: 0.75rem;
   }
 
   .btn-cancel,
   .btn-confirm {
     width: 100%;
+    box-sizing: border-box;
+  }
+}
+
+@media (max-width: 480px) {
+  .confirm-overlay {
+    padding: 0.25rem;
+  }
+
+  .confirm-modal {
+    padding: 1.25rem 0.875rem;
+  }
+
+  .confirm-modal-title {
+    font-size: 1.125rem;
   }
 }
 

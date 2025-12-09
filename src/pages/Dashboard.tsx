@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { clientesService, agendamentosService, servicosService, fromFirestoreDate } from '../services/firestore'
+import { clientesService, agendamentosService, servicosService } from '../services/firestore'
 import { useConfiguracoes } from '../hooks/useConfiguracoes'
 import { formatarMoeda } from '../utils/formatacao'
 import NovoClienteModal from '../components/NovoClienteModal'
@@ -11,7 +11,7 @@ import './Dashboard.css'
 interface StatCard {
   title: string
   value: string | number
-  icon: JSX.Element
+  icon: React.JSX.Element
   color: string
 }
 
@@ -110,7 +110,6 @@ function Dashboard() {
               const horarioProximo = (proximoAgendamento.horario || '').split(':').map(Number)
 
               if (horarioAtual.length === 2 && horarioProximo.length === 2) {
-                const minutosAtual = horarioAtual[0] * 60 + horarioAtual[1]
                 const minutosProximo = horarioProximo[0] * 60 + horarioProximo[1]
 
                 // Verificar se o último horário do grupo é 30 minutos antes do próximo
@@ -251,9 +250,7 @@ function Dashboard() {
             proximoAgendamento.data === agendamentoAtual.data
           ) {
             // Verificar se é consecutivo (diferença de 30 minutos)
-            const horarioAtual = agendamentoAtual.horario.split(':').map(Number)
             const horarioProximo = proximoAgendamento.horario.split(':').map(Number)
-            const minutosAtual = horarioAtual[0] * 60 + horarioAtual[1]
             const minutosProximo = horarioProximo[0] * 60 + horarioProximo[1]
 
             // Verificar se o último horário do grupo é 30 minutos antes do próximo
@@ -547,7 +544,7 @@ function Dashboard() {
           setShowDetalhesModal(false)
           setSelectedAgendamentoId(null)
         }}
-        onDelete={(id) => {
+        onDelete={() => {
           loadData()
         }}
         onStatusChange={() => {
