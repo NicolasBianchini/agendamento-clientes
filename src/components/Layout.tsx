@@ -171,7 +171,7 @@ function Layout({ userName }: LayoutProps) {
               <line x1="3" y1="18" x2="21" y2="18"></line>
             </svg>
           </button>
-          <h1 className="header-logo">Agendamento</h1>
+          <h1 className="header-logo">AgendaPro</h1>
         </div>
         <div className="header-right">
           <span className="user-name">{currentUserName}</span>
@@ -243,7 +243,7 @@ function Layout({ userName }: LayoutProps) {
 
       {/* Footer */}
       <footer className="layout-footer">
-        <p>Agendamento de Clientes © 2024</p>
+        <p>AgendaPro © 2024</p>
         <p className="version">v1.0.0</p>
       </footer>
     </div>

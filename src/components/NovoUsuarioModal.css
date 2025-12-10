@@ -19,7 +19,9 @@
   max-width: 600px;
   width: 100%;
   max-height: 90vh;
-  overflow-y: auto;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
   box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
   animation: slideUp 0.3s ease;
 }
@@ -75,6 +77,9 @@
 
 .modal-form {
   padding: 1.5rem;
+  overflow-y: auto;
+  flex: 1;
+  min-height: 0;
 }
 
 .form-group {
@@ -220,8 +225,14 @@ select.form-input.input-error:focus {
   gap: 1rem;
   justify-content: flex-end;
   margin-top: 2rem;
+  padding: 1.5rem;
   padding-top: 1.5rem;
   border-top: 1px solid var(--border-color, var(--color-gray-light));
+  margin-left: -1.5rem;
+  margin-right: -1.5rem;
+  margin-bottom: -1.5rem;
+  flex-wrap: wrap;
+  flex-shrink: 0;
 }
 
 .btn-secondary {
@@ -234,6 +245,9 @@ select.form-input.input-error:focus {
   font-weight: 500;
   cursor: pointer;
   transition: all 0.2s;
+  white-space: nowrap;
+  flex: 1;
+  min-width: 120px;
 }
 
 .btn-secondary:hover:not(:disabled) {
@@ -249,6 +263,7 @@ select.form-input.input-error:focus {
 .btn-primary {
   display: flex;
   align-items: center;
+  justify-content: center;
   gap: 0.5rem;
   padding: 0.875rem 1.5rem;
   background: var(--primary-color, var(--color-primary));
@@ -259,6 +274,9 @@ select.form-input.input-error:focus {
   font-weight: 600;
   cursor: pointer;
   transition: all 0.2s;
+  white-space: nowrap;
+  flex: 1;
+  min-width: 120px;
 }
 
 .btn-primary:hover:not(:disabled) {
@@ -295,16 +313,23 @@ select.form-input.input-error:focus {
 @media (max-width: 768px) {
   .modal-overlay {
     padding: 0.5rem;
+    align-items: flex-end;
   }
 
   .novo-usuario-modal {
     max-height: 95vh;
     max-width: 100%;
     margin: 0;
+    width: 100%;
+    border-radius: 16px 16px 0 0;
   }
 
   .modal-header {
     padding: 1rem;
+    position: sticky;
+    top: 0;
+    background: var(--bg-secondary, var(--color-white));
+    z-index: 10;
   }
 
   .modal-header h2 {
@@ -313,9 +338,31 @@ select.form-input.input-error:focus {
 
   .modal-form {
     padding: 1rem;
+    padding-bottom: 0;
   }
 
   .form-group {
     margin-bottom: 1.25rem;
+  }
+
+  .modal-actions {
+    position: sticky;
+    bottom: 0;
+    background: var(--bg-secondary, var(--color-white));
+    margin-left: -1rem;
+    margin-right: -1rem;
+    margin-bottom: -1rem;
+    padding: 1rem;
+    flex-direction: column-reverse;
+    gap: 0.75rem;
+    border-top: 1px solid var(--border-color, var(--color-gray-light));
+    box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.05);
+  }
+
+  .btn-secondary,
+  .btn-primary {
+    width: 100%;
+    flex: none;
+    min-width: auto;
   }
 }

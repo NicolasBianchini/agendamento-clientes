@@ -260,113 +260,226 @@ function Usuarios() {
             <p>Nenhum usuário encontrado</p>
           </div>
         ) : (
-          <table className="usuarios-table">
-            <thead>
-              <tr>
-                <th>Nome</th>
-                <th>Email</th>
-                <th>Role</th>
-                <th>Status</th>
-                <th>Data de Expiração</th>
-                <th>Data de Criação</th>
-                <th>Último Acesso</th>
-                <th>Ações</th>
-              </tr>
-            </thead>
-            <tbody>
+          <>
+            {/* Tabela para Desktop */}
+            <table className="usuarios-table desktop-only">
+              <thead>
+                <tr>
+                  <th>Nome</th>
+                  <th>Email</th>
+                  <th>Role</th>
+                  <th>Status</th>
+                  <th>Data de Expiração</th>
+                  <th>Data de Criação</th>
+                  <th>Último Acesso</th>
+                  <th>Ações</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredUsuarios.map((usuario) => (
+                  <tr key={usuario.id}>
+                    <td>
+                      <div className="user-name">
+                        {usuario.nome}
+                        {isCurrentUser(usuario) && (
+                          <span className="current-user-badge">Você</span>
+                        )}
+                      </div>
+                    </td>
+                    <td>{usuario.email}</td>
+                    <td>
+                      <span className={`role-badge ${getRoleBadgeClass(usuario.role)}`}>
+                        {getRoleLabel(usuario.role)}
+                      </span>
+                    </td>
+                    <td>
+                      <span className={`status-badge ${usuario.ativo ? 'status-active' : 'status-inactive'}`}>
+                        {usuario.ativo ? 'Ativo' : 'Inativo'}
+                      </span>
+                    </td>
+                    <td>
+                      {usuario.dataExpiracao ? (
+                        <div className="data-expiracao-cell">
+                          <span className={isAcessoExpirado(usuario) ? 'data-expirada' : isAcessoExpirando(usuario) ? 'data-expirando' : ''}>
+                            {new Date(usuario.dataExpiracao).toLocaleDateString('pt-BR')}
+                          </span>
+                          {isAcessoExpirado(usuario) && (
+                            <span className="badge-expirado">Expirado</span>
+                          )}
+                          {isAcessoExpirando(usuario) && !isAcessoExpirado(usuario) && (
+                            <span className="badge-expirando">Expira em breve</span>
+                          )}
+                        </div>
+                      ) : (
+                        <span className="sem-expiracao">Sem expiração</span>
+                      )}
+                    </td>
+                    <td>
+                      {usuario.dataCriacao
+                        ? new Date(usuario.dataCriacao).toLocaleDateString('pt-BR')
+                        : '-'}
+                    </td>
+                    <td>
+                      {usuario.ultimoAcesso
+                        ? new Date(usuario.ultimoAcesso).toLocaleDateString('pt-BR')
+                        : 'Nunca'}
+                    </td>
+                    <td>
+                      <div className="action-buttons">
+                        <button
+                          className="btn-icon"
+                          onClick={() => handleEditUsuario(usuario)}
+                          title="Editar"
+                        >
+                          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+                          </svg>
+                        </button>
+                        <button
+                          className="btn-icon"
+                          onClick={() => handleRenovarAcesso(usuario)}
+                          title="Renovar acesso"
+                        >
+                          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                            <path d="M1 4v6h6"></path>
+                            <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"></path>
+                          </svg>
+                        </button>
+                        <button
+                          className="btn-icon"
+                          onClick={() => handleStatusChange(usuario)}
+                          title={usuario.ativo ? 'Desativar' : 'Ativar'}
+                          disabled={isCurrentUser(usuario)}
+                        >
+                          {usuario.ativo ? (
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                              <path d="M18 6L6 18M6 6l12 12"></path>
+                            </svg>
+                          ) : (
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                              <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+                              <polyline points="22 4 12 14.01 9 11.01"></polyline>
+                            </svg>
+                          )}
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+
+            {/* Cards para Mobile */}
+            <div className="usuarios-cards mobile-only">
               {filteredUsuarios.map((usuario) => (
-                <tr key={usuario.id}>
-                  <td>
-                    <div className="user-name">
-                      {usuario.nome}
+                <div key={usuario.id} className="usuario-card">
+                  <div className="usuario-card-header">
+                    <div className="usuario-card-name">
+                      <h3>{usuario.nome}</h3>
                       {isCurrentUser(usuario) && (
                         <span className="current-user-badge">Você</span>
                       )}
                     </div>
-                  </td>
-                  <td>{usuario.email}</td>
-                  <td>
-                    <span className={`role-badge ${getRoleBadgeClass(usuario.role)}`}>
-                      {getRoleLabel(usuario.role)}
-                    </span>
-                  </td>
-                  <td>
-                    <span className={`status-badge ${usuario.ativo ? 'status-active' : 'status-inactive'}`}>
-                      {usuario.ativo ? 'Ativo' : 'Inativo'}
-                    </span>
-                  </td>
-                  <td>
-                    {usuario.dataExpiracao ? (
-                      <div className="data-expiracao-cell">
-                        <span className={isAcessoExpirado(usuario) ? 'data-expirada' : isAcessoExpirando(usuario) ? 'data-expirando' : ''}>
-                          {new Date(usuario.dataExpiracao).toLocaleDateString('pt-BR')}
-                        </span>
-                        {isAcessoExpirado(usuario) && (
-                          <span className="badge-expirado">Expirado</span>
-                        )}
-                        {isAcessoExpirando(usuario) && !isAcessoExpirado(usuario) && (
-                          <span className="badge-expirando">Expira em breve</span>
-                        )}
-                      </div>
-                    ) : (
-                      <span className="sem-expiracao">Sem expiração</span>
-                    )}
-                  </td>
-                  <td>
-                    {usuario.dataCriacao
-                      ? new Date(usuario.dataCriacao).toLocaleDateString('pt-BR')
-                      : '-'}
-                  </td>
-                  <td>
-                    {usuario.ultimoAcesso
-                      ? new Date(usuario.ultimoAcesso).toLocaleDateString('pt-BR')
-                      : 'Nunca'}
-                  </td>
-                  <td>
-                    <div className="action-buttons">
+                    <div className="usuario-card-actions">
                       <button
                         className="btn-icon"
                         onClick={() => handleEditUsuario(usuario)}
                         title="Editar"
                       >
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                           <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
                           <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
                         </svg>
                       </button>
-                      <button
-                        className="btn-icon"
-                        onClick={() => handleRenovarAcesso(usuario)}
-                        title="Renovar acesso"
-                      >
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                          <path d="M1 4v6h6"></path>
-                          <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"></path>
-                        </svg>
-                      </button>
-                      <button
-                        className="btn-icon"
-                        onClick={() => handleStatusChange(usuario)}
-                        title={usuario.ativo ? 'Desativar' : 'Ativar'}
-                        disabled={isCurrentUser(usuario)}
-                      >
-                        {usuario.ativo ? (
-                          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    </div>
+                  </div>
+
+                  <div className="usuario-card-body">
+                    <div className="usuario-card-field">
+                      <span className="field-label">Email:</span>
+                      <span className="field-value">{usuario.email}</span>
+                    </div>
+
+                    <div className="usuario-card-field">
+                      <span className="field-label">Tipo de Acesso:</span>
+                      <span className={`role-badge ${getRoleBadgeClass(usuario.role)}`}>
+                        {getRoleLabel(usuario.role)}
+                      </span>
+                    </div>
+
+                    <div className="usuario-card-field">
+                      <span className="field-label">Status:</span>
+                      <span className={`status-badge ${usuario.ativo ? 'status-active' : 'status-inactive'}`}>
+                        {usuario.ativo ? 'Ativo' : 'Inativo'}
+                      </span>
+                    </div>
+
+                    {usuario.dataExpiracao && (
+                      <div className="usuario-card-field">
+                        <span className="field-label">Expira em:</span>
+                        <div className="data-expiracao-cell">
+                          <span className={isAcessoExpirado(usuario) ? 'data-expirada' : isAcessoExpirando(usuario) ? 'data-expirando' : ''}>
+                            {new Date(usuario.dataExpiracao).toLocaleDateString('pt-BR')}
+                          </span>
+                          {isAcessoExpirado(usuario) && (
+                            <span className="badge-expirado">Expirado</span>
+                          )}
+                          {isAcessoExpirando(usuario) && !isAcessoExpirado(usuario) && (
+                            <span className="badge-expirando">Expira em breve</span>
+                          )}
+                        </div>
+                      </div>
+                    )}
+
+                    {!usuario.dataExpiracao && (
+                      <div className="usuario-card-field">
+                        <span className="field-label">Expiração:</span>
+                        <span className="sem-expiracao">Sem expiração</span>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="usuario-card-footer">
+                    <button
+                      className="btn-card-action"
+                      onClick={() => handleRenovarAcesso(usuario)}
+                      title="Renovar acesso"
+                    >
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <path d="M1 4v6h6"></path>
+                        <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"></path>
+                      </svg>
+                      Renovar
+                    </button>
+                    <button
+                      className="btn-card-action"
+                      onClick={() => handleStatusChange(usuario)}
+                      title={usuario.ativo ? 'Desativar' : 'Ativar'}
+                      disabled={isCurrentUser(usuario)}
+                    >
+                      {usuario.ativo ? (
+                        <>
+                          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                             <path d="M18 6L6 18M6 6l12 12"></path>
                           </svg>
-                        ) : (
-                          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                          Desativar
+                        </>
+                      ) : (
+                        <>
+                          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                             <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
                             <polyline points="22 4 12 14.01 9 11.01"></polyline>
                           </svg>
-                        )}
-                      </button>
-                    </div>
-                  </td>
-                </tr>
+                          Ativar
+                        </>
+                      )}
+                    </button>
+                  </div>
+                </div>
               ))}
-            </tbody>
-          </table>
+            </div>
+          </>
         )}
       </div>
 

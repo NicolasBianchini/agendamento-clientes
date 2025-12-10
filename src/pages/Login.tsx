@@ -105,8 +105,8 @@ function Login() {
     <div className="login-container">
       <div className="login-card">
         <div className="login-header">
-          <h1 className="login-title">Agendamento de Clientes</h1>
-          <p className="login-subtitle">Sistema de Gestão para Nail Designer</p>
+          <h1 className="login-title">AgendaPro</h1>
+          <p className="login-subtitle">Gerencie seus agendamentos de forma simples</p>
         </div>
 
         <form onSubmit={handleSubmit} className="login-form" noValidate>
