@@ -8,7 +8,8 @@
     "build": "tsc -b && vite build",
     "lint": "eslint .",
     "preview": "vite preview",
-    "create-user": "tsx scripts/create-user.ts"
+    "create-user": "tsx scripts/create-user.ts",
+    "update-user-role": "tsx scripts/update-user-role.ts"
   },
   "dependencies": {
     "firebase": "^12.6.0",

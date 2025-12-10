@@ -10,9 +10,14 @@ export function useTema() {
     const root = document.documentElement
     const body = document.body
 
-    // Remover classes anteriores
+    // Remover classes anteriores de tema
     root.classList.remove('tema-claro', 'tema-escuro')
     body.classList.remove('tema-claro', 'tema-escuro')
+
+    // Remover classes anteriores de template
+    const templates = ['template-padrao', 'template-barbearia', 'template-manicure', 'template-salon', 'template-spa']
+    root.classList.remove(...templates)
+    body.classList.remove(...templates)
 
     let temaAplicar: 'claro' | 'escuro' = 'claro'
 
@@ -43,5 +48,10 @@ export function useTema() {
     // Aplicar tema
     root.classList.add(`tema-${temaAplicar}`)
     body.classList.add(`tema-${temaAplicar}`)
-  }, [config?.tema])
+
+    // Aplicar template
+    const template = config.template || 'padrao'
+    root.classList.add(`template-${template}`)
+    body.classList.add(`template-${template}`)
+  }, [config?.tema, config?.template])
 }

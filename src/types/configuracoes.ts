@@ -12,6 +12,7 @@ export interface ConfiguracoesUsuario {
   intervaloMinutos: number // 15, 30, 60, etc.
   // Configurações de visualização
   tema: 'claro' | 'escuro' | 'auto'
+  template: 'padrao' | 'barbearia' | 'manicure' | 'salon' | 'spa'
   visualizacaoAgendaPadrao: 'dia' | 'semana' | 'mes'
   // Configurações de notificações
   notificacoesEmail: boolean

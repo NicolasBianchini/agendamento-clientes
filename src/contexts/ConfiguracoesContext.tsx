@@ -29,6 +29,7 @@ export function ConfiguracoesProvider({ children }: { children: ReactNode }) {
         horarioFinal: '23:00',
         intervaloMinutos: 30,
         tema: 'claro',
+        template: 'padrao',
         visualizacaoAgendaPadrao: 'dia',
         notificacoesEmail: false,
         notificacoesPush: false,

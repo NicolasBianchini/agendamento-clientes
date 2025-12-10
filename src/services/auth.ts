@@ -1,13 +1,17 @@
 import { collection, query, where, getDocs } from 'firebase/firestore'
 import { db } from '../config/firebase'
 
+export type UserRole = 'admin_master' | 'admin' | 'cliente'
+
 export interface Usuario {
   id: string
   nome: string
   email: string
   ativo: boolean
+  role: UserRole
   dataCriacao: string
   ultimoAcesso: string | null
+  dataExpiracao: string | null // Data de expiração do acesso (null = sem expiração)
 }
 
 interface LoginCredentials {
@@ -41,7 +45,7 @@ export function clearUserSession(): void {
 export function getUserSession(): Usuario | null {
   const usuarioStr = localStorage.getItem('usuario')
   if (!usuarioStr) return null
-  
+
   try {
     return JSON.parse(usuarioStr) as Usuario
   } catch {
@@ -75,12 +79,12 @@ export async function login(credentials: LoginCredentials): Promise<Usuario> {
   try {
     // Buscar usuário no Firestore
     const emailNormalized = email.toLowerCase().trim()
-    
+
     const q = query(
       collection(db, 'usuarios'),
       where('email', '==', emailNormalized)
     )
-    
+
     const querySnapshot = await getDocs(q)
 
     if (querySnapshot.empty) {
@@ -96,6 +100,18 @@ export async function login(credentials: LoginCredentials): Promise<Usuario> {
       throw new Error('Usuário inativo. Entre em contato com o administrador.')
     }
 
+    // Verificar se o acesso está expirado
+    if (userData.dataExpiracao) {
+      const dataExpiracao = new Date(userData.dataExpiracao)
+      const hoje = new Date()
+      hoje.setHours(0, 0, 0, 0)
+      dataExpiracao.setHours(0, 0, 0, 0)
+
+      if (dataExpiracao < hoje) {
+        throw new Error('Seu acesso expirou. Entre em contato com o administrador para renovar.')
+      }
+    }
+
     // Verificar senha
     const senhaHash = await hashPassword(senhaTrimmed)
     if (userData.senhaHash !== senhaHash) {
@@ -108,8 +124,10 @@ export async function login(credentials: LoginCredentials): Promise<Usuario> {
       nome: userData.nome,
       email: userData.email,
       ativo: userData.ativo,
+      role: userData.role || 'cliente', // Default para 'cliente' se não tiver role
       dataCriacao: userData.dataCriacao,
       ultimoAcesso: userData.ultimoAcesso || null,
+      dataExpiracao: userData.dataExpiracao || null,
     }
 
     // Atualizar último acesso (opcional - pode ser feito em background)
@@ -124,7 +142,7 @@ export async function login(credentials: LoginCredentials): Promise<Usuario> {
     if (error.code === 'permission-denied') {
       throw new Error('Erro de permissão. Verifique as regras do Firestore.')
     }
-    
+
     // Se já for uma mensagem de erro nossa, apenas relançar
     if (error.message) {
       throw error
@@ -152,5 +170,17 @@ export async function updateLastAccess(userId: string): Promise<void> {
     // Falha silenciosa - não é crítico
     console.error('Erro ao atualizar último acesso:', error)
   }
+}
+
+// Função para verificar se o usuário é admin master
+export function isAdminMaster(usuario?: Usuario | null): boolean {
+  const user = usuario || getUserSession()
+  return user?.role === 'admin_master'
+}
+
+// Função para verificar se o usuário é admin (master ou admin)
+export function isAdmin(usuario?: Usuario | null): boolean {
+  const user = usuario || getUserSession()
+  return user?.role === 'admin_master' || user?.role === 'admin'
 }
 

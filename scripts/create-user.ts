@@ -93,6 +93,19 @@ async function createUser() {
       process.exit(1)
     }
 
+    // Solicitar role
+    console.log('\nTipos de acesso disponíveis:')
+    console.log('1. Profissional (Barbeiro, Manicure, etc.) - Gerencia seus próprios agendamentos')
+    console.log('2. Admin')
+    console.log('3. Admin Master - Pode criar e gerenciar usuários')
+    const roleInput = await askQuestion('Tipo de acesso (1-3, padrão: 1): ')
+    let role: 'cliente' | 'admin' | 'admin_master' = 'cliente'
+    if (roleInput === '2') {
+      role = 'admin'
+    } else if (roleInput === '3') {
+      role = 'admin_master'
+    }
+
     // Criar hash da senha
     const senhaHash = hashPassword(senha)
 
@@ -101,6 +114,7 @@ async function createUser() {
       nome: nome.trim(),
       email: email.toLowerCase().trim(),
       senhaHash: senhaHash,
+      role: role,
       ativo: true,
       dataCriacao: new Date().toISOString(),
       ultimoAcesso: null,
@@ -114,6 +128,7 @@ async function createUser() {
     console.log(`ID: ${docRef.id}`)
     console.log(`Nome: ${userData.nome}`)
     console.log(`Email: ${userData.email}`)
+    console.log(`Role: ${userData.role}`)
     console.log('\n')
 
     process.exit(0)

@@ -1,7 +1,9 @@
 :root {
-  /* Cores Primárias */
+  /* Cores Primárias - Padrão */
   --color-primary: #6A4EA5; /* Roxo Forte */
   --color-secondary: #6A4EA5; /* Roxo Profissional */
+  --primary-color: #6A4EA5;
+  --primary-color-hover: #5a3e95;
   
   /* Cores Neutras - Tema Claro */
   --color-white: #FFFFFF;
@@ -24,6 +26,10 @@
   --text-primary: var(--color-black-soft);
   --text-secondary: #6B7280; /* Melhor contraste (WCAG AA) */
   --border-color: #E5E7EB; /* Melhor contraste */
+  
+  /* Variáveis adicionais para compatibilidade */
+  --bg-secondary: var(--background-card);
+  --bg-tertiary: var(--color-gray-light);
 }
 
 /* Tema Escuro */
@@ -37,6 +43,117 @@
   --color-white: #2d2d2d;
   --color-black-soft: #f5f5f5;
   --color-gray-medium: #808080;
+}
+
+/* Templates - Cores específicas por tipo de negócio */
+
+/* Template Padrão (roxo atual) */
+.template-padrao {
+  --color-primary: #6A4EA5;
+  --color-secondary: #6A4EA5;
+  --color-accent: #ED5BA5;
+  --primary-color: #6A4EA5;
+  --primary-color-hover: #5a3e95;
+}
+
+/* Template Barbearia - Cores escuras, marrom/preto, estilo masculino */
+.template-barbearia {
+  --color-primary: #1a1a1a; /* Preto profundo */
+  --color-secondary: #8B4513; /* Marrom sela */
+  --color-accent: #D2691E; /* Chocolate */
+  --primary-color: #1a1a1a;
+  --primary-color-hover: #2d2d2d;
+}
+
+.template-barbearia .tema-claro {
+  --background: #f5f5f5;
+  --background-card: #ffffff;
+  --text-primary: #1a1a1a;
+  --text-secondary: #4a4a4a;
+  --border-color: #d4d4d4;
+}
+
+.template-barbearia .tema-escuro {
+  --background: #0f0f0f;
+  --background-card: #1a1a1a;
+  --text-primary: #e5e5e5;
+  --text-secondary: #8a8a8a;
+  --border-color: #333333;
+}
+
+/* Template Manicure - Cores suaves, rosa/roxo, estilo feminino */
+.template-manicure {
+  --color-primary: #E91E63; /* Rosa vibrante */
+  --color-secondary: #9C27B0; /* Roxo suave */
+  --color-accent: #F06292; /* Rosa claro */
+  --primary-color: #E91E63;
+  --primary-color-hover: #C2185B;
+}
+
+.template-manicure .tema-claro {
+  --background: #fef7f7;
+  --background-card: #ffffff;
+  --text-primary: #2d1b2e;
+  --text-secondary: #6b4c6d;
+  --border-color: #f0d0d6;
+}
+
+.template-manicure .tema-escuro {
+  --background: #1a0f1a;
+  --background-card: #2d1b2e;
+  --text-primary: #f5e6f0;
+  --text-secondary: #b89bb8;
+  --border-color: #4a2d4a;
+}
+
+/* Template Salon - Cores elegantes, dourado/bege */
+.template-salon {
+  --color-primary: #D4AF37; /* Dourado */
+  --color-secondary: #C9A961; /* Dourado suave */
+  --color-accent: #F4D03F; /* Amarelo dourado */
+  --primary-color: #D4AF37;
+  --primary-color-hover: #B8941F;
+}
+
+.template-salon .tema-claro {
+  --background: #faf8f3;
+  --background-card: #ffffff;
+  --text-primary: #2d2418;
+  --text-secondary: #6b5d4a;
+  --border-color: #e8dcc8;
+}
+
+.template-salon .tema-escuro {
+  --background: #1a1610;
+  --background-card: #2d2418;
+  --text-primary: #f5ead8;
+  --text-secondary: #b8a890;
+  --border-color: #4a3d2a;
+}
+
+/* Template Spa - Cores relaxantes, verde/azul */
+.template-spa {
+  --color-primary: #4A90A4; /* Azul esverdeado */
+  --color-secondary: #5BA3B8; /* Azul claro */
+  --color-accent: #7BC4C4; /* Turquesa */
+  --primary-color: #4A90A4;
+  --primary-color-hover: #3a7080;
+}
+
+.template-spa .tema-claro {
+  --background: #f0f7f9;
+  --background-card: #ffffff;
+  --text-primary: #1a2d33;
+  --text-secondary: #4a6b75;
+  --border-color: #c8dde3;
+}
+
+.template-spa .tema-escuro {
+  --background: #0f1a1d;
+  --background-card: #1a2d33;
+  --text-primary: #e5f0f3;
+  --text-secondary: #8ab3c0;
+  --border-color: #2d4a55;
 }
 
 * {

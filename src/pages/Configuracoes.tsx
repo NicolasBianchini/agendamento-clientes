@@ -236,6 +236,22 @@ function Configuracoes() {
             </div>
 
             <div className="config-field">
+              <label htmlFor="template">Template Visual</label>
+              <select
+                id="template"
+                value={config.template || 'padrao'}
+                onChange={(e) => handleChange('template', e.target.value)}
+              >
+                <option value="padrao">Padrão (Roxo)</option>
+                <option value="barbearia">Barbearia (Preto/Marrom)</option>
+                <option value="manicure">Manicure (Rosa/Roxo)</option>
+                <option value="salon">Salon (Dourado)</option>
+                <option value="spa">Spa (Azul/Verde)</option>
+              </select>
+              <span className="field-help">Estilo visual personalizado para seu tipo de negócio</span>
+            </div>
+
+            <div className="config-field">
               <label htmlFor="visualizacaoAgendaPadrao">Visualização Padrão da Agenda</label>
               <select
                 id="visualizacaoAgendaPadrao"

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { Outlet, useLocation, useNavigate } from 'react-router-dom'
-import { getUserSession, logout, isAuthenticated } from '../services/auth'
+import { getUserSession, logout, isAuthenticated, isAdminMaster } from '../services/auth'
 import './Layout.css'
 
 interface LayoutProps {
@@ -25,7 +25,7 @@ function Layout({ userName }: LayoutProps) {
     if (usuario) {
       setCurrentUserName(usuario.nome)
     }
-  }, [navigate])
+  }, [navigate, location.pathname]) // Re-executar quando a rota mudar para atualizar menu
 
   const handleLogout = () => {
     logout()
@@ -108,10 +108,22 @@ function Layout({ userName }: LayoutProps) {
             <path d="M12 1v6m0 6v6m9-9h-6m-6 0H3m15.364 6.364l-4.243-4.243m-4.242 0L5.636 18.364M18.364 5.636l-4.243 4.243m-4.242 0L5.636 5.636"></path>
           </svg>
         )
+      case 'usuarios':
+        return (
+          <svg {...iconProps}>
+            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+            <circle cx="9" cy="7" r="4"></circle>
+            <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+            <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+          </svg>
+        )
       default:
         return null
     }
   }
+
+  const usuario = getUserSession()
+  const isMaster = isAdminMaster(usuario)
 
   const menuItems = [
     { path: '/dashboard', label: 'Dashboard', iconName: 'dashboard' },
@@ -119,6 +131,7 @@ function Layout({ userName }: LayoutProps) {
     { path: '/servicos', label: 'Serviços', iconName: 'servicos' },
     { path: '/agenda', label: 'Agenda', iconName: 'agenda' },
     { path: '/historico', label: 'Histórico', iconName: 'historico' },
+    ...(isMaster ? [{ path: '/usuarios', label: 'Usuários', iconName: 'usuarios' }] : []),
     { path: '/configuracoes', label: 'Configurações', iconName: 'configuracoes' },
   ]
 

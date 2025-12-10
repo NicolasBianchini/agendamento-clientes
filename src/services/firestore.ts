@@ -479,6 +479,7 @@ export const configuracoesService = {
       horarioFinal: '23:00',
       intervaloMinutos: 30,
       tema: 'claro',
+      template: 'padrao',
       visualizacaoAgendaPadrao: 'dia',
       notificacoesEmail: false,
       notificacoesPush: false,
