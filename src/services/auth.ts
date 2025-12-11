@@ -80,13 +80,41 @@ export async function login(credentials: LoginCredentials): Promise<Usuario> {
     // Buscar usuário no Firestore
     const emailNormalized = email.toLowerCase().trim()
     console.log('🔐 [LOGIN] Tentando fazer login com email:', emailNormalized)
+    console.log('🔐 [LOGIN] Firebase config:', {
+      projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID ? 'configurado' : 'NÃO CONFIGURADO',
+      authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN ? 'configurado' : 'NÃO CONFIGURADO'
+    })
 
     const q = query(
       collection(db, 'usuarios'),
       where('email', '==', emailNormalized)
     )
 
+    console.log('🔐 [LOGIN] Executando query no Firestore...')
     const querySnapshot = await getDocs(q)
+    console.log('🔐 [LOGIN] Query executada. Resultados encontrados:', querySnapshot.size)
+
+    // Debug: listar todos os usuários (apenas em desenvolvimento)
+    if (querySnapshot.empty && import.meta.env.DEV) {
+      console.log('🔍 [LOGIN] Nenhum usuário encontrado. Listando todos os usuários para debug...')
+      try {
+        const allUsersQuery = query(collection(db, 'usuarios'), limit(10))
+        const allUsersSnapshot = await getDocs(allUsersQuery)
+        console.log('📋 [LOGIN] Total de usuários no banco:', allUsersSnapshot.size)
+        allUsersSnapshot.docs.forEach((doc, index) => {
+          const data = doc.data()
+          console.log(`📋 [LOGIN] Usuário ${index + 1}:`, {
+            id: doc.id,
+            email: data.email,
+            emailNormalized: data.email?.toLowerCase().trim(),
+            nome: data.nome,
+            ativo: data.ativo
+          })
+        })
+      } catch (debugError) {
+        console.error('❌ [LOGIN] Erro ao listar usuários para debug:', debugError)
+      }
+    }
 
     if (querySnapshot.empty) {
       console.log('❌ [LOGIN] Usuário não encontrado com email:', emailNormalized)
