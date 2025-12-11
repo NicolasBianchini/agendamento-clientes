@@ -403,9 +403,8 @@ function AgendaDia() {
           <div className="agenda-header-actions">
             <AgendaViewToggle />
             <button
-              className="btn-primary"
+              className={`btn-primary ${acessoExpirado ? 'disabled' : ''}`}
               onClick={handleNovoAgendamentoClick}
-              disabled={acessoExpirado}
               title={acessoExpirado ? 'Seu acesso expirou. Você pode apenas visualizar os dados existentes.' : ''}
             >
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">

@@ -383,6 +383,35 @@
   flex: 1;
 }
 
+.quick-action-btn.disabled,
+.quick-action-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.quick-action-btn.disabled:hover,
+.quick-action-btn:disabled:hover {
+  background: var(--color-gray-light);
+  color: var(--color-black-soft);
+  border-color: transparent;
+  transform: none;
+  box-shadow: none;
+}
+
+.tema-escuro .quick-action-btn.disabled,
+.tema-escuro .quick-action-btn:disabled {
+  background: var(--elevation-2, #1f1f1f);
+  color: var(--text-secondary);
+  opacity: 0.5;
+}
+
+.tema-escuro .quick-action-btn.disabled:hover,
+.tema-escuro .quick-action-btn:disabled:hover {
+  background: var(--elevation-2, #1f1f1f);
+  color: var(--text-secondary);
+  box-shadow: none;
+}
+
 .quick-action-btn-suporte {
   background: #25D366 !important;
   color: var(--color-white) !important;
@@ -404,6 +433,21 @@
 .tema-escuro .quick-action-btn-suporte:hover {
   background: #20BA5A !important;
   box-shadow: 0 4px 16px rgba(37, 211, 102, 0.4) !important;
+}
+
+.quick-action-btn-suporte.disabled,
+.quick-action-btn-suporte:disabled {
+  opacity: 0.5 !important;
+  cursor: not-allowed !important;
+  background: #25D366 !important;
+}
+
+.quick-action-btn-suporte.disabled:hover,
+.quick-action-btn-suporte:disabled:hover {
+  background: #25D366 !important;
+  border-color: #25D366 !important;
+  box-shadow: none !important;
+  transform: none !important;
 }
 
 /* Responsividade */

@@ -61,11 +61,11 @@ function Clientes() {
   const loadClientes = async () => {
     setIsLoading(true)
     setError(null)
-    
+
     try {
       // Buscar clientes no Firestore
       const clientesData = await clientesService.getAll()
-      
+
       // Buscar total de agendamentos para cada cliente
       const clientesComAgendamentos = await Promise.all(
         clientesData.map(async (cliente: any) => {
@@ -77,7 +77,7 @@ function Clientes() {
           }
         })
       )
-      
+
       setClientes(clientesComAgendamentos as Cliente[])
     } catch (err) {
       setError('Erro ao carregar clientes. Tente novamente.')
@@ -230,9 +230,8 @@ function Clientes() {
           </select>
 
           <button
-            className="btn-primary"
+            className={`btn-primary ${acessoExpirado ? 'disabled' : ''}`}
             onClick={handleNovoClienteClick}
-            disabled={acessoExpirado}
             title={acessoExpirado ? 'Seu acesso expirou. Você pode apenas visualizar os dados existentes.' : ''}
           >
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -261,9 +260,8 @@ function Clientes() {
           </p>
           {!searchTerm && (
             <button
-              className="btn-primary"
+              className={`btn-primary ${acessoExpirado ? 'disabled' : ''}`}
               onClick={handleNovoClienteClick}
-              disabled={acessoExpirado}
               title={acessoExpirado ? 'Seu acesso expirou. Você pode apenas visualizar os dados existentes.' : ''}
             >
               Cadastrar Cliente

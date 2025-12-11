@@ -73,10 +73,22 @@ function Dashboard() {
   }
 
   const handleSuporteClick = () => {
+    if (acessoExpirado) {
+      addToast('Seu acesso expirou. Você pode apenas visualizar os dados existentes. Entre em contato com o administrador para renovar seu acesso.', 'warning')
+      return
+    }
     if (config?.whatsappSuporte) {
       const link = gerarLinkWhatsApp(config.whatsappSuporte, 'Olá! Preciso de suporte.')
       window.open(link, '_blank')
     }
+  }
+
+  const handleVerAgendaClick = () => {
+    if (acessoExpirado) {
+      addToast('Seu acesso expirou. Você pode apenas visualizar os dados existentes. Entre em contato com o administrador para renovar seu acesso.', 'warning')
+      return
+    }
+    navigate('/agenda')
   }
 
   const temWhatsappSuporte = config?.whatsappSuporte && config.whatsappSuporte.trim() !== ''
@@ -522,9 +534,8 @@ function Dashboard() {
           <h2 className="section-title">Ações Rápidas</h2>
           <div className="quick-actions">
             <button
-              className="quick-action-btn"
+              className={`quick-action-btn ${acessoExpirado ? 'disabled' : ''}`}
               onClick={handleNovoClienteClick}
-              disabled={acessoExpirado}
               title={acessoExpirado ? 'Seu acesso expirou. Você pode apenas visualizar os dados existentes.' : ''}
             >
               <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -534,9 +545,8 @@ function Dashboard() {
               <span>Novo Cliente</span>
             </button>
             <button
-              className="quick-action-btn"
+              className={`quick-action-btn ${acessoExpirado ? 'disabled' : ''}`}
               onClick={handleNovoAgendamentoClick}
-              disabled={acessoExpirado}
               title={acessoExpirado ? 'Seu acesso expirou. Você pode apenas visualizar os dados existentes.' : ''}
             >
               <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -546,8 +556,9 @@ function Dashboard() {
               <span>Novo Agendamento</span>
             </button>
             <button
-              className="quick-action-btn"
-              onClick={() => navigate('/agenda')}
+              className={`quick-action-btn ${acessoExpirado ? 'disabled' : ''}`}
+              onClick={handleVerAgendaClick}
+              title={acessoExpirado ? 'Seu acesso expirou. Você pode apenas visualizar os dados existentes.' : ''}
             >
               <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
@@ -559,9 +570,9 @@ function Dashboard() {
             </button>
             {temWhatsappSuporte && (
               <button
-                className="quick-action-btn quick-action-btn-suporte"
+                className={`quick-action-btn quick-action-btn-suporte ${acessoExpirado ? 'disabled' : ''}`}
                 onClick={handleSuporteClick}
-                title="Falar com suporte via WhatsApp"
+                title={acessoExpirado ? 'Seu acesso expirou. Você pode apenas visualizar os dados existentes.' : 'Falar com suporte via WhatsApp'}
               >
                 <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                   <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"></path>

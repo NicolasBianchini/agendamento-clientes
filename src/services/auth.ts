@@ -163,6 +163,48 @@ export async function updateLastAccess(userId: string): Promise<void> {
   }
 }
 
+// Função para atualizar a sessão do usuário com dados do Firestore
+export async function refreshUserSession(): Promise<Usuario | null> {
+  const usuario = getUserSession()
+  if (!usuario) return null
+
+  try {
+    const { doc, getDoc } = await import('firebase/firestore')
+    const userRef = doc(db, 'usuarios', usuario.id)
+    const docSnap = await getDoc(userRef)
+
+    if (!docSnap.exists()) {
+      console.warn('Usuário não encontrado no Firestore ao atualizar sessão')
+      return null
+    }
+
+    const userData = docSnap.data()
+    const usuarioAtualizado: Usuario = {
+      id: docSnap.id,
+      nome: userData.nome,
+      email: userData.email,
+      ativo: userData.ativo,
+      role: userData.role || 'cliente',
+      dataCriacao: userData.dataCriacao,
+      ultimoAcesso: userData.ultimoAcesso || null,
+      dataExpiracao: userData.dataExpiracao || null,
+    }
+
+    // Atualizar sessão
+    saveUserSession(usuarioAtualizado)
+    console.log('✅ Sessão do usuário atualizada:', {
+      id: usuarioAtualizado.id,
+      dataExpiracao: usuarioAtualizado.dataExpiracao,
+      acessoPermanente: !usuarioAtualizado.dataExpiracao
+    })
+
+    return usuarioAtualizado
+  } catch (error) {
+    console.error('Erro ao atualizar sessão do usuário:', error)
+    return null
+  }
+}
+
 // Função para verificar se o usuário é admin master
 export function isAdminMaster(usuario?: Usuario | null): boolean {
   const user = usuario || getUserSession()
@@ -178,7 +220,15 @@ export function isAdmin(usuario?: Usuario | null): boolean {
 // Função para verificar se o acesso do usuário está expirado
 export function isAccessExpired(usuario?: Usuario | null): boolean {
   const user = usuario || getUserSession()
-  if (!user || !user.dataExpiracao) {
+
+  // Se não tem usuário, não está expirado
+  if (!user) {
+    return false
+  }
+
+  // Se dataExpiracao é null, undefined ou string vazia, é acesso permanente
+  if (!user.dataExpiracao || user.dataExpiracao.trim() === '') {
+    console.log('🔓 [ACESSO] Acesso permanente detectado (sem dataExpiracao)')
     return false
   }
 
@@ -201,7 +251,14 @@ export function isAccessExpired(usuario?: Usuario | null): boolean {
 // Função para verificar se o acesso está expirando em 7 dias ou menos
 export function isAccessExpiring(usuario?: Usuario | null): boolean {
   const user = usuario || getUserSession()
-  if (!user || !user.dataExpiracao) {
+
+  // Se não tem usuário, não está expirando
+  if (!user) {
+    return false
+  }
+
+  // Se dataExpiracao é null, undefined ou string vazia, é acesso permanente - não está expirando
+  if (!user.dataExpiracao || user.dataExpiracao.trim() === '') {
     return false
   }
 

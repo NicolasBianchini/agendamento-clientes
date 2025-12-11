@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { Outlet, useLocation, useNavigate } from 'react-router-dom'
-import { getUserSession, logout, isAuthenticated, isAdminMaster, isAccessExpired, isAccessExpiring, getDaysUntilExpiration } from '../services/auth'
+import { getUserSession, logout, isAuthenticated, isAdminMaster, isAccessExpired, isAccessExpiring, getDaysUntilExpiration, refreshUserSession } from '../services/auth'
 import { useConfiguracoes } from '../hooks/useConfiguracoes'
 import { gerarLinkWhatsApp } from '../utils/formatacao'
 import AcessoExpiradoModal from './AcessoExpiradoModal'
@@ -36,38 +36,81 @@ function Layout({ userName }: LayoutProps) {
 
   // Verificar acesso expirado ou expirando
   useEffect(() => {
-    const usuario = getUserSession()
-    if (!usuario) return
+    const verificarAcesso = async () => {
+      // Primeiro, atualizar a sessão do Firestore para garantir dados atualizados
+      const usuarioAtualizado = await refreshUserSession()
+      const usuario = usuarioAtualizado || getUserSession()
 
-    // Verificar se já expirou (prioridade)
-    if (isAccessExpired(usuario)) {
-      setModalTipo('expirado')
-      setDiasRestantes(null)
-      setShowAcessoExpiradoModal(true)
-      return
-    }
+      if (!usuario) return
 
-    // Verificar se está expirando em 7 dias ou menos (incluindo hoje)
-    if (isAccessExpiring(usuario)) {
-      const dias = getDaysUntilExpiration(usuario)
-      setDiasRestantes(dias)
+      console.log('🔍 [LAYOUT] Verificando acesso do usuário:', {
+        id: usuario.id,
+        nome: usuario.nome,
+        dataExpiracao: usuario.dataExpiracao,
+        acessoPermanente: !usuario.dataExpiracao,
+        isExpired: isAccessExpired(usuario),
+        isExpiring: isAccessExpiring(usuario)
+      })
 
-      // Se expira hoje (0 dias), mostrar como "expirando" mas com mensagem especial
-      // Se já expirou, não chegaria aqui (já foi tratado acima)
+      // Se dataExpiracao é null ou vazio, é acesso permanente - não mostrar modal
+      if (!usuario.dataExpiracao || usuario.dataExpiracao.trim() === '') {
+        console.log('✅ [LAYOUT] Acesso permanente - não mostrar modal')
+        setShowAcessoExpiradoModal(false)
+        return
+      }
 
-      // Verificar se já mostramos o modal hoje
-      const hoje = new Date().toISOString().split('T')[0] // YYYY-MM-DD
-      const lastShownKey = `acesso_expirando_modal_${usuario.id}_${hoje}`
-      const lastShown = localStorage.getItem(lastShownKey)
-
-      // Se não mostramos hoje, mostrar e marcar como mostrado
-      if (!lastShown) {
-        setModalTipo('expirando')
+      // Verificar se já expirou (prioridade)
+      if (isAccessExpired(usuario)) {
+        console.log('❌ [LAYOUT] Acesso expirado - mostrando modal')
+        setModalTipo('expirado')
+        setDiasRestantes(null)
         setShowAcessoExpiradoModal(true)
-        localStorage.setItem(lastShownKey, 'true')
+        return
+      }
+
+      // Verificar se está expirando em 7 dias ou menos (incluindo hoje)
+      if (isAccessExpiring(usuario)) {
+        const dias = getDaysUntilExpiration(usuario)
+        setDiasRestantes(dias)
+
+        // Verificar se já mostramos o modal hoje
+        const hoje = new Date().toISOString().split('T')[0] // YYYY-MM-DD
+        const lastShownKey = `acesso_expirando_modal_${usuario.id}_${hoje}`
+        const lastShown = localStorage.getItem(lastShownKey)
+
+        // Se não mostramos hoje, mostrar e marcar como mostrado
+        if (!lastShown) {
+          console.log('⚠️ [LAYOUT] Acesso expirando em', dias, 'dias - mostrando modal')
+          setModalTipo('expirando')
+          setShowAcessoExpiradoModal(true)
+          localStorage.setItem(lastShownKey, 'true')
+        }
+      } else {
+        // Acesso válido e não está expirando - garantir que modal não está aberto
+        setShowAcessoExpiradoModal(false)
       }
     }
-  }, []) // Executar apenas uma vez ao montar
+
+    verificarAcesso()
+
+    // Escutar evento de acesso renovado
+    const handleAcessoRenovado = () => {
+      console.log('🔄 [LAYOUT] Evento de acesso renovado recebido - atualizando...')
+      verificarAcesso()
+    }
+
+    window.addEventListener('acesso-renovado', handleAcessoRenovado)
+
+    // Verificar novamente quando a rota mudar (pode ter sido renovado em outra aba)
+    const intervalId = setInterval(() => {
+      verificarAcesso()
+    }, 30000) // Verificar a cada 30 segundos
+
+    return () => {
+      clearInterval(intervalId)
+      window.removeEventListener('acesso-renovado', handleAcessoRenovado)
+    }
+  }, [location.pathname]) // Re-executar quando a rota mudar
 
   const handleLogout = () => {
     logout()

@@ -59,11 +59,11 @@ function Servicos() {
   const loadServicos = async () => {
     setIsLoading(true)
     setError(null)
-    
+
     try {
       // Buscar serviços no Firestore
       const servicosData = await servicosService.getAll()
-      
+
       // Buscar total de agendamentos para cada serviço
       const servicosComAgendamentos = await Promise.all(
         servicosData.map(async (servico: any) => {
@@ -72,7 +72,7 @@ function Servicos() {
           const agendamentosDoServico = todosAgendamentos.filter(
             (ag: any) => ag.servicoId === servico.id
           )
-          
+
           return {
             ...servico,
             totalAgendamentos: agendamentosDoServico.length,
@@ -81,7 +81,7 @@ function Servicos() {
           }
         })
       )
-      
+
       setServicos(servicosComAgendamentos as Servico[])
     } catch (err) {
       setError('Erro ao carregar serviços. Tente novamente.')
@@ -125,9 +125,9 @@ function Servicos() {
       await servicosService.update(servico.id, {
         ativo: !servico.ativo,
       })
-      
+
       // Atualizar estado local
-      setServicos(servicos.map(s => 
+      setServicos(servicos.map(s =>
         s.id === servico.id ? { ...s, ativo: !s.ativo } : s
       ))
     } catch (error) {
@@ -158,7 +158,7 @@ function Servicos() {
       const agendamentosDoServico = todosAgendamentos.filter(
         (ag: any) => ag.servicoId === servicoToDelete.id
       )
-      
+
       if (agendamentosDoServico.length > 0) {
         alert(`Este serviço possui ${agendamentosDoServico.length} agendamento(s). Não é possível excluir.`)
         setShowDeleteModal(false)
@@ -256,9 +256,8 @@ function Servicos() {
         </div>
 
         <button
-          className="btn-primary"
+          className={`btn-primary ${acessoExpirado ? 'disabled' : ''}`}
           onClick={handleNovoServicoClick}
-          disabled={acessoExpirado}
           title={acessoExpirado ? 'Seu acesso expirou. Você pode apenas visualizar os dados existentes.' : ''}
         >
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">

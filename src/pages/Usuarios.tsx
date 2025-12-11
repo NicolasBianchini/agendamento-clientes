@@ -133,6 +133,16 @@ function Usuarios() {
 
       addToast('Acesso renovado com sucesso!', 'success')
       await loadUsuarios()
+
+      // Se o usuário renovado for o próprio usuário logado, atualizar sessão
+      const usuarioLogado = getUserSession()
+      if (usuarioLogado && usuarioLogado.id === usuarioToRenovar.id) {
+        const { refreshUserSession } = await import('../services/auth')
+        await refreshUserSession()
+        // Disparar evento para atualizar Layout
+        window.dispatchEvent(new Event('acesso-renovado'))
+      }
+
       setShowRenovarModal(false)
       setUsuarioToRenovar(null)
       setNovaDataExpiracao('')

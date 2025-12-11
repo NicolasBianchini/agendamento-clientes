@@ -223,3 +223,20 @@ body {
   color: var(--text-primary);
   transition: background-color 0.3s ease, color 0.3s ease;
 }
+
+/* Estilos globais para botões desabilitados (classe .disabled) */
+/* Permite clique para mostrar notificação, mas mantém aparência desabilitada */
+.btn-primary.disabled,
+.btn-secondary.disabled,
+button.disabled {
+  opacity: 0.5 !important;
+  cursor: not-allowed !important;
+}
+
+.btn-primary.disabled:hover,
+.btn-secondary.disabled:hover,
+button.disabled:hover {
+  opacity: 0.5 !important;
+  transform: none !important;
+  box-shadow: none !important;
+}
