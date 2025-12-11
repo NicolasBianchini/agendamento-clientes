@@ -517,39 +517,66 @@ export const configuracoesService = {
 
   // Obter configurações com valores padrão
   getComPadroes: async (): Promise<ConfiguracoesUsuario> => {
-    const userId = getCurrentUserId()
-    const config = await configuracoesService.getByUserId(userId)
-
-    if (config) {
-      // Buscar WhatsApp de suporte do admin master e adicionar às configurações
-      const whatsappSuporteAdmin = await configuracoesService.getWhatsappSuporteAdminMaster()
-      return {
-        ...config,
-        whatsappSuporte: whatsappSuporteAdmin || config.whatsappSuporte || '',
-      }
-    }
-
-    // Retornar valores padrão
+    // Buscar WhatsApp de suporte do admin master primeiro (não requer autenticação do usuário atual)
     const whatsappSuporteAdmin = await configuracoesService.getWhatsappSuporteAdminMaster()
-    return {
-      userId,
-      horarioInicial: '06:00',
-      horarioFinal: '23:00',
-      intervaloMinutos: 30,
-      tema: 'claro',
-      template: 'padrao',
-      visualizacaoAgendaPadrao: 'dia',
-      notificacoesEmail: false,
-      notificacoesPush: false,
-      lembrarAgendamentos: true,
-      moeda: 'BRL',
-      formatoData: 'DD/MM/YYYY',
-      formatoHora: '24h',
-      mensagensAutomaticas: false,
-      apiMensagensUrl: '',
-      apiMensagensToken: '',
-      apiMensagensInstancia: '',
-      whatsappSuporte: whatsappSuporteAdmin,
+
+    try {
+      const userId = getCurrentUserId()
+      const config = await configuracoesService.getByUserId(userId)
+
+      if (config) {
+        // Buscar WhatsApp de suporte do admin master e adicionar às configurações
+        return {
+          ...config,
+          whatsappSuporte: whatsappSuporteAdmin || config.whatsappSuporte || '',
+        }
+      }
+
+      // Retornar valores padrão com userId
+      return {
+        userId,
+        horarioInicial: '06:00',
+        horarioFinal: '23:00',
+        intervaloMinutos: 30,
+        tema: 'claro',
+        template: 'padrao',
+        visualizacaoAgendaPadrao: 'dia',
+        notificacoesEmail: false,
+        notificacoesPush: false,
+        lembrarAgendamentos: true,
+        moeda: 'BRL',
+        formatoData: 'DD/MM/YYYY',
+        formatoHora: '24h',
+        mensagensAutomaticas: false,
+        apiMensagensUrl: '',
+        apiMensagensToken: '',
+        apiMensagensInstancia: '',
+        whatsappSuporte: whatsappSuporteAdmin,
+      }
+    } catch (error) {
+      // Se não conseguir obter userId (acesso expirado, etc), retornar valores padrão sem userId
+      // mas ainda com o WhatsApp do admin master
+      console.warn('Não foi possível obter userId, retornando configurações padrão:', error)
+      return {
+        userId: '',
+        horarioInicial: '06:00',
+        horarioFinal: '23:00',
+        intervaloMinutos: 30,
+        tema: 'claro',
+        template: 'padrao',
+        visualizacaoAgendaPadrao: 'dia',
+        notificacoesEmail: false,
+        notificacoesPush: false,
+        lembrarAgendamentos: true,
+        moeda: 'BRL',
+        formatoData: 'DD/MM/YYYY',
+        formatoHora: '24h',
+        mensagensAutomaticas: false,
+        apiMensagensUrl: '',
+        apiMensagensToken: '',
+        apiMensagensInstancia: '',
+        whatsappSuporte: whatsappSuporteAdmin,
+      }
     }
   },
 }
