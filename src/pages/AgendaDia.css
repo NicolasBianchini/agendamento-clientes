@@ -22,9 +22,19 @@
   transition: all 0.2s;
 }
 
+.tema-escuro .btn-filter-toggle {
+  background: var(--elevation-1, var(--background-card));
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
 .btn-filter-toggle:hover {
   background: var(--color-gray-light);
   border-color: var(--color-primary);
+}
+
+.tema-escuro .btn-filter-toggle:hover {
+  background: var(--elevation-2, #1f1f1f);
+  box-shadow: 0 2px 8px rgba(106, 78, 165, 0.3);
 }
 
 .filter-badge {
@@ -47,6 +57,11 @@
   background: var(--background-card);
   border: 1px solid var(--border-color);
   border-radius: 8px;
+}
+
+.tema-escuro .filters-panel {
+  background: var(--elevation-1, var(--background-card));
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
 }
 
 .filters-grid {
@@ -152,9 +167,17 @@
   white-space: nowrap;
 }
 
+.tema-escuro .btn-primary {
+  box-shadow: 0 2px 8px rgba(106, 78, 165, 0.3);
+}
+
 .btn-primary:hover {
   transform: translateY(-2px);
   box-shadow: 0 4px 12px rgba(122, 62, 73, 0.3);
+}
+
+.tema-escuro .btn-primary:hover {
+  box-shadow: 0 4px 16px rgba(106, 78, 165, 0.5);
 }
 
 .agenda-date-controls {
@@ -166,6 +189,12 @@
   background: var(--color-white);
   border-radius: 12px;
   box-shadow: 0 2px 8px rgba(122, 62, 73, 0.08);
+}
+
+.tema-escuro .agenda-date-controls {
+  background: var(--elevation-1, var(--background-card));
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  border: 1px solid var(--border-color);
 }
 
 .date-display {
@@ -206,9 +235,21 @@
   transition: all 0.2s;
 }
 
+.tema-escuro .btn-nav {
+  background: var(--elevation-2, #1f1f1f);
+  color: var(--text-primary);
+  border: 1px solid var(--border-color);
+}
+
 .btn-nav:hover {
   background: var(--color-primary);
   color: var(--color-white);
+}
+
+.tema-escuro .btn-nav:hover {
+  background: var(--color-primary);
+  border-color: var(--color-primary);
+  box-shadow: 0 2px 8px rgba(106, 78, 165, 0.3);
 }
 
 .btn-today {
@@ -223,9 +264,17 @@
   transition: all 0.2s;
 }
 
+.tema-escuro .btn-today {
+  box-shadow: 0 2px 8px rgba(237, 91, 165, 0.3);
+}
+
 .btn-today:hover {
   background: var(--color-secondary);
   transform: translateY(-2px);
+}
+
+.tema-escuro .btn-today:hover {
+  box-shadow: 0 4px 12px rgba(237, 91, 165, 0.5);
 }
 
 .agenda-loading {
@@ -263,6 +312,12 @@
   box-shadow: 0 2px 8px rgba(122, 62, 73, 0.08);
 }
 
+.tema-escuro .agenda-grid {
+  background: var(--elevation-1, var(--background-card));
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  border: 1px solid var(--border-color);
+}
+
 .time-slot {
   display: flex;
   flex-direction: column;
@@ -278,11 +333,23 @@
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
 }
 
+.tema-escuro .time-slot {
+  background: var(--elevation-2, #1f1f1f);
+  border-color: var(--border-color);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
 .time-slot:hover {
   border-color: var(--color-primary);
   transform: translateY(-2px);
   box-shadow: 0 4px 8px rgba(106, 78, 165, 0.15);
   background: rgba(201, 183, 221, 0.1);
+}
+
+.tema-escuro .time-slot:hover {
+  border-color: var(--color-primary);
+  box-shadow: 0 4px 12px rgba(106, 78, 165, 0.4);
+  background: var(--elevation-3, #242424);
 }
 
 .time-slot:hover .time-slot-empty {
@@ -339,6 +406,12 @@
   opacity: 1;
 }
 
+.tema-escuro .time-slot-empty {
+  background: rgba(106, 78, 165, 0.15);
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+}
+
 .time-slot-ocupado {
   display: flex;
   align-items: center;
@@ -384,10 +457,21 @@
   box-shadow: 0 2px 4px rgba(106, 78, 165, 0.1);
 }
 
+.tema-escuro .agendamento-card {
+  background: var(--elevation-2, #1f1f1f);
+  border-color: var(--color-primary);
+  box-shadow: 0 2px 6px rgba(106, 78, 165, 0.3);
+}
+
 .agendamento-card:hover {
   transform: translateY(-2px);
   box-shadow: 0 4px 8px rgba(106, 78, 165, 0.2);
   border-color: var(--color-accent);
+}
+
+.tema-escuro .agendamento-card:hover {
+  box-shadow: 0 4px 12px rgba(106, 78, 165, 0.5);
+  background: var(--elevation-3, #242424);
 }
 
 .agendamento-header {

@@ -34,15 +34,26 @@
 
 /* Tema Escuro */
 .tema-escuro {
-  --background: #1a1a1a;
-  --background-card: #2d2d2d;
+  --background: #0f0f0f;
+  --background-card: #1a1a1a;
   --text-primary: #f5f5f5;
-  --text-secondary: #a0a0a0;
-  --border-color: #404040;
-  --color-gray-light: #2d2d2d;
-  --color-white: #2d2d2d;
+  --text-secondary: #b0b0b0;
+  --border-color: #2d2d2d;
+  --color-gray-light: #1a1a1a;
+  --color-white: #1a1a1a;
   --color-black-soft: #f5f5f5;
-  --color-gray-medium: #808080;
+  --color-gray-medium: #6b6b6b;
+  
+  /* Sombras específicas para dark mode */
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.5);
+  --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.4);
+  --shadow-lg: 0 10px 15px rgba(0, 0, 0, 0.5);
+  --shadow-xl: 0 20px 25px rgba(0, 0, 0, 0.6);
+  
+  /* Cores de elevação para cards */
+  --elevation-1: #1a1a1a;
+  --elevation-2: #1f1f1f;
+  --elevation-3: #242424;
 }
 
 /* Templates - Cores específicas por tipo de negócio */
@@ -53,7 +64,13 @@
   --color-secondary: #6A4EA5;
   --color-accent: #ED5BA5;
   --primary-color: #6A4EA5;
-  --primary-color-hover: #5a3e95;
+  --primary-color-hover: #7b5eb5;
+}
+
+/* Ajustes do template padrão para dark mode */
+.template-padrao.tema-escuro {
+  --primary-color-hover: #8b6ec5;
+  --color-primary: #8b6ec5;
 }
 
 /* Template Barbearia - Cores escuras, marrom/preto, estilo masculino */
@@ -71,14 +88,26 @@
   --text-primary: #1a1a1a;
   --text-secondary: #4a4a4a;
   --border-color: #d4d4d4;
+  --color-primary: #1a1a1a;
+  --primary-color: #1a1a1a;
+  --primary-color-hover: #2d2d2d;
 }
 
 .template-barbearia .tema-escuro {
-  --background: #0f0f0f;
-  --background-card: #1a1a1a;
+  --background: #0a0a0a;
+  --background-card: #141414;
   --text-primary: #e5e5e5;
   --text-secondary: #8a8a8a;
-  --border-color: #333333;
+  --border-color: #2a2a2a;
+  --elevation-1: #141414;
+  --elevation-2: #1a1a1a;
+  --elevation-3: #1f1f1f;
+  /* Ajustar cores primárias para serem visíveis no dark mode */
+  --color-primary: #D2691E; /* Chocolate - mais visível */
+  --primary-color: #D2691E; /* Chocolate para botões */
+  --primary-color-hover: #E67E22; /* Laranja mais claro no hover */
+  --color-secondary: #8B4513; /* Marrom sela mantido */
+  --color-accent: #F39C12; /* Laranja dourado para destaques */
 }
 
 /* Template Manicure - Cores suaves, rosa/roxo, estilo feminino */
@@ -104,6 +133,14 @@
   --text-primary: #f5e6f0;
   --text-secondary: #b89bb8;
   --border-color: #4a2d4a;
+  --elevation-1: #2d1b2e;
+  --elevation-2: #35203a;
+  --elevation-3: #3d2546;
+  /* Garantir que as cores primárias sejam visíveis */
+  --color-primary: #E91E63;
+  --primary-color: #E91E63;
+  --primary-color-hover: #F06292;
+  --color-accent: #F06292;
 }
 
 /* Template Salon - Cores elegantes, dourado/bege */
@@ -129,6 +166,14 @@
   --text-primary: #f5ead8;
   --text-secondary: #b8a890;
   --border-color: #4a3d2a;
+  --elevation-1: #2d2418;
+  --elevation-2: #352c20;
+  --elevation-3: #3d3428;
+  /* Garantir que as cores primárias sejam visíveis */
+  --color-primary: #D4AF37;
+  --primary-color: #D4AF37;
+  --primary-color-hover: #F4D03F;
+  --color-accent: #F4D03F;
 }
 
 /* Template Spa - Cores relaxantes, verde/azul */
@@ -154,6 +199,14 @@
   --text-primary: #e5f0f3;
   --text-secondary: #8ab3c0;
   --border-color: #2d4a55;
+  --elevation-1: #1a2d33;
+  --elevation-2: #203a42;
+  --elevation-3: #264751;
+  /* Garantir que as cores primárias sejam visíveis */
+  --color-primary: #4A90A4;
+  --primary-color: #4A90A4;
+  --primary-color-hover: #5BA3B8;
+  --color-accent: #7BC4C4;
 }
 
 * {
