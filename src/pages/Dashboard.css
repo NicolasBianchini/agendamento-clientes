@@ -383,6 +383,29 @@
   flex: 1;
 }
 
+.quick-action-btn-suporte {
+  background: #25D366 !important;
+  color: var(--color-white) !important;
+  border-color: #25D366 !important;
+}
+
+.tema-escuro .quick-action-btn-suporte {
+  background: #25D366 !important;
+  color: var(--color-white) !important;
+  border-color: #25D366 !important;
+}
+
+.quick-action-btn-suporte:hover {
+  background: #20BA5A !important;
+  border-color: #20BA5A !important;
+  box-shadow: 0 4px 12px rgba(37, 211, 102, 0.3) !important;
+}
+
+.tema-escuro .quick-action-btn-suporte:hover {
+  background: #20BA5A !important;
+  box-shadow: 0 4px 16px rgba(37, 211, 102, 0.4) !important;
+}
+
 /* Responsividade */
 @media (max-width: 768px) {
   .dashboard {

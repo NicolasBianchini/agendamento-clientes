@@ -304,7 +304,6 @@ function EditarUsuarioModal({ isOpen, onClose, onSuccess, usuario }: EditarUsuar
                 value={dataExpiracao}
                 onChange={(e) => setDataExpiracao(e.target.value)}
                 disabled={isSubmitting}
-                min={new Date().toISOString().split('T')[0]}
               />
               <small className="form-hint">
                 Após esta data, o usuário precisará de uma nova liberação para acessar o sistema

@@ -61,11 +61,11 @@ function Clientes() {
   const loadClientes = async () => {
     setIsLoading(true)
     setError(null)
-
+    
     try {
       // Buscar clientes no Firestore
       const clientesData = await clientesService.getAll()
-
+      
       // Buscar total de agendamentos para cada cliente
       const clientesComAgendamentos = await Promise.all(
         clientesData.map(async (cliente: any) => {
@@ -77,7 +77,7 @@ function Clientes() {
           }
         })
       )
-
+      
       setClientes(clientesComAgendamentos as Cliente[])
     } catch (err) {
       setError('Erro ao carregar clientes. Tente novamente.')

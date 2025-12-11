@@ -27,6 +27,8 @@ export interface ConfiguracoesUsuario {
   apiMensagensUrl?: string // URL da API de mensagens (ex: https://api.evolution-api.com)
   apiMensagensToken?: string // Token de autenticação da API
   apiMensagensInstancia?: string // ID da instância (para Evolution API)
+  // Configurações de suporte
+  whatsappSuporte?: string // Número de WhatsApp para suporte (opcional)
   // Timestamps
   dataCriacao?: Date | Timestamp
   dataAtualizacao?: Date | Timestamp

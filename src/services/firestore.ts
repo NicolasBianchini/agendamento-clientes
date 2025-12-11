@@ -422,6 +422,11 @@ export const configuracoesService = {
         return {
           id: doc.id,
           ...data,
+          // Garantir que campos opcionais tenham valores padrão se não existirem
+          whatsappSuporte: data.whatsappSuporte ?? '',
+          apiMensagensUrl: data.apiMensagensUrl ?? '',
+          apiMensagensToken: data.apiMensagensToken ?? '',
+          apiMensagensInstancia: data.apiMensagensInstancia ?? '',
         } as ConfiguracoesUsuario
       }
       return null
@@ -448,25 +453,65 @@ export const configuracoesService = {
       if (existente) {
         // Atualizar
         const docRef = doc(db, 'configuracoes', existente.id!)
-        await updateDoc(docRef, {
+        const updateData: Record<string, unknown> = {
           ...config,
           userId,
+          // Garantir que campos opcionais sejam sempre salvos (mesmo que vazios)
+          whatsappSuporte: config.whatsappSuporte ?? '',
+          apiMensagensUrl: config.apiMensagensUrl ?? '',
+          apiMensagensToken: config.apiMensagensToken ?? '',
+          apiMensagensInstancia: config.apiMensagensInstancia ?? '',
           dataAtualizacao: Timestamp.now(),
-        } as any)
+        }
+        await updateDoc(docRef, updateData)
         return existente.id!
       } else {
         // Criar novo
-        const docRef = await addDoc(collection(db, 'configuracoes'), {
+        const newData: Record<string, unknown> = {
           ...config,
           userId,
+          // Garantir que campos opcionais sejam sempre salvos (mesmo que vazios)
+          whatsappSuporte: config.whatsappSuporte ?? '',
+          apiMensagensUrl: config.apiMensagensUrl ?? '',
+          apiMensagensToken: config.apiMensagensToken ?? '',
+          apiMensagensInstancia: config.apiMensagensInstancia ?? '',
           dataCriacao: Timestamp.now(),
           dataAtualizacao: Timestamp.now(),
-        } as any)
+        }
+        const docRef = await addDoc(collection(db, 'configuracoes'), newData)
         return docRef.id
       }
     } catch (error) {
       console.error('Erro ao salvar configurações:', error)
       throw error
+    }
+  },
+
+  // Buscar WhatsApp de suporte do admin master (configuração global)
+  getWhatsappSuporteAdminMaster: async (): Promise<string> => {
+    try {
+      // Buscar um usuário admin_master
+      const usuariosQuery = query(
+        collection(db, 'usuarios'),
+        where('role', '==', 'admin_master'),
+        where('ativo', '==', true),
+        limit(1)
+      )
+      const usuariosSnapshot = await getDocs(usuariosQuery)
+
+      if (usuariosSnapshot.empty) {
+        return ''
+      }
+
+      const adminMasterId = usuariosSnapshot.docs[0].id
+
+      // Buscar configurações do admin master
+      const config = await configuracoesService.getByUserId(adminMasterId)
+
+      return config?.whatsappSuporte || ''
+    } catch (error) {
+      console.error('Erro ao buscar WhatsApp de suporte do admin master:', error)
+      return ''
     }
   },
 
@@ -476,10 +521,16 @@ export const configuracoesService = {
     const config = await configuracoesService.getByUserId(userId)
 
     if (config) {
-      return config
+      // Buscar WhatsApp de suporte do admin master e adicionar às configurações
+      const whatsappSuporteAdmin = await configuracoesService.getWhatsappSuporteAdminMaster()
+      return {
+        ...config,
+        whatsappSuporte: whatsappSuporteAdmin || config.whatsappSuporte || '',
+      }
     }
 
     // Retornar valores padrão
+    const whatsappSuporteAdmin = await configuracoesService.getWhatsappSuporteAdminMaster()
     return {
       userId,
       horarioInicial: '06:00',
@@ -498,6 +549,7 @@ export const configuracoesService = {
       apiMensagensUrl: '',
       apiMensagensToken: '',
       apiMensagensInstancia: '',
+      whatsappSuporte: whatsappSuporteAdmin,
     }
   },
 }

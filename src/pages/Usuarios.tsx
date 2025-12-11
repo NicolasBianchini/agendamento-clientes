@@ -646,7 +646,6 @@ function Usuarios() {
                         setNovaDataExpiracao(e.target.value)
                         handleManualDateChange()
                       }}
-                      min={new Date().toISOString().split('T')[0]}
                     />
                     {periodoRenovacao && periodoRenovacao !== 'manual' && (
                       <span className="form-hint">

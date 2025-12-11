@@ -389,7 +389,6 @@ function NovoUsuarioModal({ isOpen, onClose, onSuccess }: NovoUsuarioModalProps)
                 value={dataExpiracao}
                 onChange={(e) => setDataExpiracao(e.target.value)}
                 disabled={isSubmitting}
-                min={new Date().toISOString().split('T')[0]}
               />
               <small className="form-hint">
                 Após esta data, o usuário precisará de uma nova liberação para acessar o sistema

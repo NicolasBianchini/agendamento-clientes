@@ -38,6 +38,7 @@ export function ConfiguracoesProvider({ children }: { children: ReactNode }) {
         formatoData: 'DD/MM/YYYY',
         formatoHora: '24h',
         mensagensAutomaticas: false,
+        whatsappSuporte: '',
       })
     } finally {
       setLoading(false)

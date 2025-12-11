@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react'
 import { Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { getUserSession, logout, isAuthenticated, isAdminMaster, isAccessExpired, isAccessExpiring, getDaysUntilExpiration } from '../services/auth'
+import { useConfiguracoes } from '../hooks/useConfiguracoes'
+import { gerarLinkWhatsApp } from '../utils/formatacao'
 import AcessoExpiradoModal from './AcessoExpiradoModal'
 import './Layout.css'
 
@@ -9,6 +11,7 @@ interface LayoutProps {
 }
 
 function Layout({ userName }: LayoutProps) {
+  const { config } = useConfiguracoes()
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [currentUserName, setCurrentUserName] = useState(userName || 'Usuário')
@@ -183,6 +186,15 @@ function Layout({ userName }: LayoutProps) {
     closeMobileMenu()
   }
 
+  const handleSuporteClick = () => {
+    if (config?.whatsappSuporte) {
+      const link = gerarLinkWhatsApp(config.whatsappSuporte, 'Olá! Preciso de suporte.')
+      window.open(link, '_blank')
+    }
+  }
+
+  const temWhatsappSuporte = config?.whatsappSuporte && config.whatsappSuporte.trim() !== ''
+
   return (
     <div className="layout-container">
       {/* Header */}
@@ -214,6 +226,19 @@ function Layout({ userName }: LayoutProps) {
         </div>
         <div className="header-right">
           <span className="user-name">{currentUserName}</span>
+          {temWhatsappSuporte && (
+            <button
+              className="suporte-button"
+              onClick={handleSuporteClick}
+              aria-label="Suporte via WhatsApp"
+              title="Falar com suporte"
+            >
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"></path>
+              </svg>
+              <span className="desktop-only">Suporte</span>
+            </button>
+          )}
           <button className="logout-button" onClick={handleLogout} aria-label="Logout">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>

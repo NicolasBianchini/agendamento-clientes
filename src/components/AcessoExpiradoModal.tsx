@@ -1,4 +1,7 @@
+import { useEffect } from 'react'
 import { useKeyboardNavigation } from '../hooks/useKeyboardNavigation'
+import { useConfiguracoes } from '../hooks/useConfiguracoes'
+import { gerarLinkWhatsApp } from '../utils/formatacao'
 import './AcessoExpiradoModal.css'
 
 interface AcessoExpiradoModalProps {
@@ -9,14 +12,48 @@ interface AcessoExpiradoModalProps {
 }
 
 function AcessoExpiradoModal({ isOpen, onClose, tipo = 'expirado', diasRestantes = null }: AcessoExpiradoModalProps) {
+  const { config, loading } = useConfiguracoes()
   const modalRef = useKeyboardNavigation(isOpen, onClose, {
     closeOnEscape: false,
     trapFocus: true,
   })
 
+  const isExpirando = tipo === 'expirando'
+  // Verificar se tem WhatsApp de suporte configurado
+  // Aceita tanto string vazia quanto undefined/null
+  const whatsappSuporte = config?.whatsappSuporte
+  // Verificação mais robusta: aceita qualquer valor não vazio (incluindo números sem formatação)
+  // Remove espaços e caracteres não numéricos para verificar se há conteúdo
+  const whatsappLimpo = whatsappSuporte ? String(whatsappSuporte).trim().replace(/\D/g, '') : ''
+  const temWhatsappSuporte = whatsappLimpo.length > 0
+
+  // Debug: verificar valores (sempre logar para debug)
+  useEffect(() => {
+    if (isOpen) {
+      console.log('[AcessoExpiradoModal] Debug WhatsApp:', {
+        loading,
+        configExists: !!config,
+        whatsappSuporte,
+        whatsappLimpo,
+        temWhatsappSuporte,
+        tipo: typeof whatsappSuporte,
+        configKeys: config ? Object.keys(config) : [],
+        configFull: config
+      })
+    }
+  }, [isOpen, loading, config, whatsappSuporte, whatsappLimpo, temWhatsappSuporte])
+
   if (!isOpen) return null
 
-  const isExpirando = tipo === 'expirando'
+  const handleSuporteClick = () => {
+    if (config?.whatsappSuporte) {
+      const mensagem = isExpirando
+        ? 'Olá! Meu acesso está expirando em breve. Gostaria de renovar.'
+        : 'Olá! Meu acesso expirou. Gostaria de renovar.'
+      const link = gerarLinkWhatsApp(config.whatsappSuporte, mensagem)
+      window.open(link, '_blank')
+    }
+  }
 
   return (
     <div className="modal-overlay acesso-expirado-overlay">
@@ -61,11 +98,29 @@ function AcessoExpiradoModal({ isOpen, onClose, tipo = 'expirado', diasRestantes
               'Seu acesso expirou. Entre em contato com o administrador para renovar.'
             )}
           </p>
+          {!temWhatsappSuporte && config && (
+            <p className="acesso-expirado-hint" style={{ fontSize: '0.875rem', marginTop: '0.5rem', color: 'var(--text-secondary, var(--color-gray-medium))' }}>
+              💡 Dica: Configure o WhatsApp de suporte em <strong>Configurações</strong> para facilitar o contato.
+            </p>
+          )}
         </div>
         <div className="acesso-expirado-actions">
+          {temWhatsappSuporte && (
+            <button
+              className="btn-suporte"
+              onClick={handleSuporteClick}
+              type="button"
+            >
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"></path>
+              </svg>
+              Falar com Suporte
+            </button>
+          )}
           <button
             className="btn-entendi"
             onClick={onClose}
+            type="button"
           >
             Entendi
           </button>

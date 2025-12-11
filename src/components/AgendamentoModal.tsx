@@ -80,16 +80,18 @@ function AgendamentoModal({
 
   useEffect(() => {
     if (isOpen) {
-      loadData()
-      if (mode === 'create') {
-        // Pré-preenchimento para criação
-        if (initialData) setData(initialData)
-        if (initialHorario) setHorarios([initialHorario])
-        if (initialClienteId) setClienteId(initialClienteId)
-      } else {
-        // Carregar dados do agendamento para edição
-        loadAgendamentoData()
-      }
+      // Sempre carregar dados básicos primeiro (clientes e serviços)
+      loadData().then(() => {
+        if (mode === 'create') {
+          // Pré-preenchimento para criação
+          if (initialData) setData(initialData)
+          if (initialHorario) setHorarios([initialHorario])
+          if (initialClienteId) setClienteId(initialClienteId)
+        } else if (mode === 'edit' && agendamentoId) {
+          // Carregar dados do agendamento para edição após carregar dados básicos
+          loadAgendamentoData()
+        }
+      })
     } else {
       resetForm()
     }
@@ -107,7 +109,7 @@ function AgendamentoModal({
     }
   }, [clienteId, clientes])
 
-  const loadData = async () => {
+  const loadData = async (): Promise<void> => {
     setIsLoading(true)
     try {
       // Buscar clientes e serviços no Firestore
@@ -144,20 +146,70 @@ function AgendamentoModal({
         return
       }
 
-      const agDate = agendamento.data instanceof Date
-        ? agendamento.data.toISOString().split('T')[0]
-        : agendamento.data
+      console.log('📋 Dados do agendamento carregados:', agendamento)
 
+      // Converter data para string YYYY-MM-DD
+      let agDate: string
+      if (agendamento.data instanceof Date) {
+        // Usar métodos locais para evitar problemas de timezone
+        const year = agendamento.data.getFullYear()
+        const month = String(agendamento.data.getMonth() + 1).padStart(2, '0')
+        const day = String(agendamento.data.getDate()).padStart(2, '0')
+        agDate = `${year}-${month}-${day}`
+      } else if (typeof agendamento.data === 'string') {
+        agDate = agendamento.data.split('T')[0]
+      } else if (agendamento.data?.toDate && typeof agendamento.data.toDate === 'function') {
+        // Se for Timestamp do Firestore, usar timezone local
+        const date = agendamento.data.toDate()
+        const year = date.getFullYear()
+        const month = String(date.getMonth() + 1).padStart(2, '0')
+        const day = String(date.getDate()).padStart(2, '0')
+        agDate = `${year}-${month}-${day}`
+      } else {
+        console.error('Formato de data inválido:', agendamento.data)
+        const hoje = new Date()
+        const year = hoje.getFullYear()
+        const month = String(hoje.getMonth() + 1).padStart(2, '0')
+        const day = String(hoje.getDate()).padStart(2, '0')
+        agDate = `${year}-${month}-${day}`
+      }
+
+      // Tratar horário - pode ser string ou array
+      let horariosArray: string[] = []
+      if (Array.isArray(agendamento.horario)) {
+        horariosArray = agendamento.horario.filter((h: any) => h && typeof h === 'string')
+      } else if (typeof agendamento.horario === 'string' && agendamento.horario) {
+        horariosArray = [agendamento.horario]
+      }
+
+      console.log('📅 Data formatada:', agDate)
+      console.log('⏰ Horários:', horariosArray)
+      console.log('👤 Cliente ID:', agendamento.clienteId)
+      console.log('🔧 Serviço ID:', agendamento.servicoId)
+
+      // Definir os estados com os dados carregados
       setClienteId(agendamento.clienteId || '')
       setServicoId(agendamento.servicoId || '')
       setData(agDate)
-      setHorarios(agendamento.horario ? [agendamento.horario] : [])
+      setHorarios(horariosArray)
       setObservacoes(agendamento.observacoes || '')
       setStatus(agendamento.status || 'agendado')
       setErrors({})
+
+      // Atualizar clienteSearch se houver clientes carregados
+      if (agendamento.clienteId && clientes.length > 0) {
+        const cliente = clientes.find(c => c.id === agendamento.clienteId)
+        if (cliente) {
+          setClienteSearch(cliente.nome)
+          console.log('👤 Cliente encontrado e definido:', cliente.nome)
+        }
+      }
+
+      console.log('✅ Dados do agendamento carregados com sucesso')
+      console.log('📊 Estado final - ClienteId:', agendamento.clienteId, 'ServicoId:', agendamento.servicoId, 'Data:', agDate, 'Horários:', horariosArray)
     } catch (error) {
       alert('Erro ao carregar dados do agendamento. Tente novamente.')
-      console.error(error)
+      console.error('❌ Erro ao carregar dados do agendamento:', error)
       onClose()
     } finally {
       setIsLoading(false)

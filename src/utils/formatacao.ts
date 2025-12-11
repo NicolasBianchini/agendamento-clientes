@@ -143,3 +143,48 @@ export function formatarDataParaInput(date: Date | string | null | undefined): s
 
   return `${year}-${month}-${day}`
 }
+
+/**
+ * Formata o telefone para uso no WhatsApp (apenas números com código do país)
+ */
+function formatarTelefoneWhatsApp(telefone: string): string {
+  // Remove tudo que não é número
+  const numeros = telefone.replace(/\D/g, '')
+
+  // Se já começar com 55 (código do Brasil), retornar como está
+  if (numeros.startsWith('55')) {
+    return numeros
+  }
+
+  // Se tiver 11 dígitos (DDD + 9 dígitos), adicionar código do país
+  if (numeros.length === 11) {
+    return `55${numeros}`
+  }
+
+  // Se tiver 10 dígitos (DDD + 8 dígitos), adicionar código do país
+  if (numeros.length === 10) {
+    return `55${numeros}`
+  }
+
+  // Retornar como está se não se encaixar nos padrões
+  return numeros
+}
+
+/**
+ * Gera o link do WhatsApp para suporte
+ * @param telefone Número de telefone (com ou sem formatação)
+ * @param mensagem Mensagem pré-preenchida (opcional)
+ * @returns URL do WhatsApp Web/App
+ */
+export function gerarLinkWhatsApp(telefone: string, mensagem?: string): string {
+  if (!telefone) return ''
+
+  const telefoneFormatado = formatarTelefoneWhatsApp(telefone)
+  const mensagemEncoded = mensagem ? encodeURIComponent(mensagem) : ''
+
+  if (mensagemEncoded) {
+    return `https://wa.me/${telefoneFormatado}?text=${mensagemEncoded}`
+  }
+
+  return `https://wa.me/${telefoneFormatado}`
+}

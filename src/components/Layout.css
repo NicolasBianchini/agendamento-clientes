@@ -90,6 +90,27 @@
   transition: color 0.3s ease;
 }
 
+.suporte-button {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: #25D366;
+  border: none;
+  padding: 0.5rem 1rem;
+  border-radius: 8px;
+  cursor: pointer;
+  color: var(--color-white);
+  font-size: 0.875rem;
+  font-weight: 500;
+  transition: all 0.2s;
+}
+
+.suporte-button:hover {
+  background: #20BA5A;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(37, 211, 102, 0.3);
+}
+
 .logout-button {
   display: flex;
   align-items: center;
@@ -386,6 +407,16 @@
   }
 
   .user-name {
+    display: none;
+  }
+
+  .suporte-button {
+    padding: 0.5rem 0.75rem;
+    font-size: 0.8125rem;
+    flex-shrink: 0;
+  }
+
+  .suporte-button .desktop-only {
     display: none;
   }
 

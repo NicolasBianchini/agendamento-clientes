@@ -85,9 +85,11 @@
 .acesso-expirado-actions {
   display: flex;
   justify-content: center;
+  gap: 0.75rem;
   padding: 0 1.5rem 1.5rem 1.5rem;
   border-top: 1px solid var(--border-color, var(--color-gray-light));
   padding-top: 1.5rem;
+  flex-wrap: wrap;
 }
 
 .btn-entendi {
@@ -111,6 +113,37 @@
 
 .btn-entendi:active {
   transform: translateY(0);
+}
+
+.btn-suporte {
+  padding: 0.875rem 2rem;
+  background: #25D366;
+  color: var(--color-white);
+  border: none;
+  border-radius: 8px;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  min-width: 120px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+}
+
+.btn-suporte:hover {
+  background: #20BA5A;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(37, 211, 102, 0.3);
+}
+
+.btn-suporte:active {
+  transform: translateY(0);
+}
+
+.btn-suporte svg {
+  flex-shrink: 0;
 }
 
 @keyframes fadeIn {
@@ -194,7 +227,12 @@
     padding-top: 1rem;
   }
 
-  .btn-entendi {
+  .acesso-expirado-actions {
+    flex-direction: column;
+  }
+
+  .btn-entendi,
+  .btn-suporte {
     width: 100%;
   }
 }
