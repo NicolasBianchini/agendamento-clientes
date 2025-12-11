@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { listarUsuarios, alterarStatusUsuario, renovarAcessoUsuario } from '../services/usuarios'
 import { isAdminMaster, getUserSession, type Usuario, type UserRole } from '../services/auth'
+import { formatarDataParaInput, formatarData } from '../utils/formatacao'
 import NovoUsuarioModal from '../components/NovoUsuarioModal'
 import EditarUsuarioModal from '../components/EditarUsuarioModal'
 import ConfirmModal from '../components/ConfirmModal'
@@ -92,8 +93,8 @@ function Usuarios() {
   const handleRenovarAcesso = (usuario: Usuario) => {
     setUsuarioToRenovar(usuario)
     if (usuario.dataExpiracao) {
-      const data = new Date(usuario.dataExpiracao)
-      setNovaDataExpiracao(data.toISOString().split('T')[0])
+      // Converter data para formato YYYY-MM-DD sem problemas de timezone
+      setNovaDataExpiracao(formatarDataParaInput(usuario.dataExpiracao))
       setSemExpiracaoRenovar(false)
       setPeriodoRenovacao('manual')
     } else {
@@ -205,7 +206,16 @@ function Usuarios() {
 
   const isAcessoExpirado = (usuario: Usuario): boolean => {
     if (!usuario.dataExpiracao) return false
-    const dataExpiracao = new Date(usuario.dataExpiracao)
+
+    // Se for string YYYY-MM-DD, converter usando métodos locais
+    let dataExpiracao: Date
+    if (typeof usuario.dataExpiracao === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(usuario.dataExpiracao)) {
+      const [year, month, day] = usuario.dataExpiracao.split('-').map(Number)
+      dataExpiracao = new Date(year, month - 1, day)
+    } else {
+      dataExpiracao = new Date(usuario.dataExpiracao)
+    }
+
     const hoje = new Date()
     hoje.setHours(0, 0, 0, 0)
     dataExpiracao.setHours(0, 0, 0, 0)
@@ -214,7 +224,16 @@ function Usuarios() {
 
   const isAcessoExpirando = (usuario: Usuario): boolean => {
     if (!usuario.dataExpiracao) return false
-    const dataExpiracao = new Date(usuario.dataExpiracao)
+
+    // Se for string YYYY-MM-DD, converter usando métodos locais
+    let dataExpiracao: Date
+    if (typeof usuario.dataExpiracao === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(usuario.dataExpiracao)) {
+      const [year, month, day] = usuario.dataExpiracao.split('-').map(Number)
+      dataExpiracao = new Date(year, month - 1, day)
+    } else {
+      dataExpiracao = new Date(usuario.dataExpiracao)
+    }
+
     const hoje = new Date()
     const em7Dias = new Date()
     em7Dias.setDate(hoje.getDate() + 7)
@@ -323,7 +342,7 @@ function Usuarios() {
                       {usuario.dataExpiracao ? (
                         <div className="data-expiracao-cell">
                           <span className={isAcessoExpirado(usuario) ? 'data-expirada' : isAcessoExpirando(usuario) ? 'data-expirando' : ''}>
-                            {new Date(usuario.dataExpiracao).toLocaleDateString('pt-BR')}
+                            {formatarData(usuario.dataExpiracao)}
                           </span>
                           {isAcessoExpirado(usuario) && (
                             <span className="badge-expirado">Expirado</span>
@@ -442,7 +461,7 @@ function Usuarios() {
                         <span className="field-label">Expira em:</span>
                         <div className="data-expiracao-cell">
                           <span className={isAcessoExpirado(usuario) ? 'data-expirada' : isAcessoExpirando(usuario) ? 'data-expirando' : ''}>
-                            {new Date(usuario.dataExpiracao).toLocaleDateString('pt-BR')}
+                            {formatarData(usuario.dataExpiracao)}
                           </span>
                           {isAcessoExpirado(usuario) && (
                             <span className="badge-expirado">Expirado</span>

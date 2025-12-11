@@ -100,17 +100,8 @@ export async function login(credentials: LoginCredentials): Promise<Usuario> {
       throw new Error('Usuário inativo. Entre em contato com o administrador.')
     }
 
-    // Verificar se o acesso está expirado
-    if (userData.dataExpiracao) {
-      const dataExpiracao = new Date(userData.dataExpiracao)
-      const hoje = new Date()
-      hoje.setHours(0, 0, 0, 0)
-      dataExpiracao.setHours(0, 0, 0, 0)
-
-      if (dataExpiracao < hoje) {
-        throw new Error('Seu acesso expirou. Entre em contato com o administrador para renovar.')
-      }
-    }
+    // Verificar se o acesso está expirado (não bloqueia login, apenas marca)
+    // O modal será exibido após o login no Layout
 
     // Verificar senha
     const senhaHash = await hashPassword(senhaTrimmed)
@@ -182,5 +173,88 @@ export function isAdminMaster(usuario?: Usuario | null): boolean {
 export function isAdmin(usuario?: Usuario | null): boolean {
   const user = usuario || getUserSession()
   return user?.role === 'admin_master' || user?.role === 'admin'
+}
+
+// Função para verificar se o acesso do usuário está expirado
+export function isAccessExpired(usuario?: Usuario | null): boolean {
+  const user = usuario || getUserSession()
+  if (!user || !user.dataExpiracao) {
+    return false
+  }
+
+  // Se for string YYYY-MM-DD, converter usando métodos locais
+  let dataExpiracao: Date
+  if (typeof user.dataExpiracao === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(user.dataExpiracao)) {
+    const [year, month, day] = user.dataExpiracao.split('-').map(Number)
+    dataExpiracao = new Date(year, month - 1, day)
+  } else {
+    dataExpiracao = new Date(user.dataExpiracao)
+  }
+
+  const hoje = new Date()
+  hoje.setHours(0, 0, 0, 0)
+  dataExpiracao.setHours(0, 0, 0, 0)
+
+  return dataExpiracao < hoje
+}
+
+// Função para verificar se o acesso está expirando em 7 dias ou menos
+export function isAccessExpiring(usuario?: Usuario | null): boolean {
+  const user = usuario || getUserSession()
+  if (!user || !user.dataExpiracao) {
+    return false
+  }
+
+  // Se for string YYYY-MM-DD, converter usando métodos locais
+  let dataExpiracao: Date
+  if (typeof user.dataExpiracao === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(user.dataExpiracao)) {
+    const [year, month, day] = user.dataExpiracao.split('-').map(Number)
+    dataExpiracao = new Date(year, month - 1, day)
+  } else {
+    dataExpiracao = new Date(user.dataExpiracao)
+  }
+
+  const hoje = new Date()
+  hoje.setHours(0, 0, 0, 0)
+  dataExpiracao.setHours(0, 0, 0, 0)
+
+  // Se já expirou, não está expirando (será tratado como expirado)
+  if (dataExpiracao < hoje) {
+    return false
+  }
+
+  // Calcular diferença em dias
+  const diffTime = dataExpiracao.getTime() - hoje.getTime()
+  const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
+
+  // Retornar true se faltar 7 dias ou menos para expirar (incluindo hoje, que é 0 dias)
+  return diffDays <= 7 && diffDays >= 0
+}
+
+// Função para obter quantos dias faltam para expirar
+export function getDaysUntilExpiration(usuario?: Usuario | null): number | null {
+  const user = usuario || getUserSession()
+  if (!user || !user.dataExpiracao) {
+    return null
+  }
+
+  // Se for string YYYY-MM-DD, converter usando métodos locais
+  let dataExpiracao: Date
+  if (typeof user.dataExpiracao === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(user.dataExpiracao)) {
+    const [year, month, day] = user.dataExpiracao.split('-').map(Number)
+    dataExpiracao = new Date(year, month - 1, day)
+  } else {
+    dataExpiracao = new Date(user.dataExpiracao)
+  }
+
+  const hoje = new Date()
+  hoje.setHours(0, 0, 0, 0)
+  dataExpiracao.setHours(0, 0, 0, 0)
+
+  // Calcular diferença em dias
+  const diffTime = dataExpiracao.getTime() - hoje.getTime()
+  const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
+
+  return diffDays
 }
 

@@ -9,7 +9,18 @@ export function formatarData(
 ): string {
   if (!data) return ''
 
-  const date = typeof data === 'string' ? new Date(data) : data
+  let date: Date
+
+  // Se for string YYYY-MM-DD, converter usando métodos locais para evitar problemas de timezone
+  if (typeof data === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(data)) {
+    // Extrair ano, mês e dia diretamente da string
+    const [year, month, day] = data.split('-').map(Number)
+    // Criar Date usando timezone local
+    date = new Date(year, month - 1, day)
+  } else {
+    date = typeof data === 'string' ? new Date(data) : data
+  }
+
   if (isNaN(date.getTime())) return ''
 
   const formato = config?.formatoData || 'DD/MM/YYYY'
@@ -92,4 +103,43 @@ export function formatarDataHora(
   if (!horaFormatada) return dataFormatada
 
   return `${dataFormatada} às ${horaFormatada}`
+}
+
+/**
+ * Converte uma data (Date, string ISO, ou string YYYY-MM-DD) para formato YYYY-MM-DD
+ * sem problemas de timezone. Usa métodos locais para garantir que o dia não mude.
+ */
+export function formatarDataParaInput(date: Date | string | null | undefined): string {
+  if (!date) return ''
+
+  // Se já for string YYYY-MM-DD, retornar diretamente (sem conversão)
+  if (typeof date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(date)) {
+    return date
+  }
+
+  let data: Date
+
+  if (date instanceof Date) {
+    data = date
+  } else if (typeof date === 'string') {
+    // Para strings ISO ou outras, tentar extrair YYYY-MM-DD diretamente se possível
+    const match = date.match(/^(\d{4})-(\d{2})-(\d{2})/)
+    if (match) {
+      // Se a string começa com YYYY-MM-DD, usar diretamente
+      return match[0]
+    }
+    // Caso contrário, converter para Date e usar métodos locais
+    data = new Date(date)
+  } else {
+    return ''
+  }
+
+  if (isNaN(data.getTime())) return ''
+
+  // Usar métodos locais para evitar problemas de timezone
+  const year = data.getFullYear()
+  const month = String(data.getMonth() + 1).padStart(2, '0')
+  const day = String(data.getDate()).padStart(2, '0')
+
+  return `${year}-${month}-${day}`
 }

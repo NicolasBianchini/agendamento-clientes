@@ -1,9 +1,12 @@
 import { useState, useEffect, useMemo } from 'react'
 import { agendamentosService, clientesService, servicosService } from '../services/firestore'
+import { getUserSession, isAccessExpired } from '../services/auth'
 import AgendaViewToggle from '../components/AgendaViewToggle'
 import AgendamentoModal from '../components/AgendamentoModal'
 import AgendamentoDetalhesModal from '../components/AgendamentoDetalhesModal'
 import { useConfiguracoes } from '../hooks/useConfiguracoes'
+import ToastContainer from '../components/ToastContainer'
+import type { ToastType } from '../components/Toast'
 import './AgendaDia.css'
 
 interface Agendamento {
@@ -36,11 +39,33 @@ function AgendaDia() {
   const [showAgendamentoModal, setShowAgendamentoModal] = useState(false)
   const [showDetalhesModal, setShowDetalhesModal] = useState(false)
   const [selectedAgendamentoId, setSelectedAgendamentoId] = useState<string | null>(null)
+  const [agendamentoModalMode, setAgendamentoModalMode] = useState<'create' | 'edit'>('create')
+  const [toasts, setToasts] = useState<Array<{ id: string; message: string; type: ToastType }>>([])
   const [modalInitialData, setModalInitialData] = useState<{
     clienteId?: string | null
     data?: string | null
     horario?: string | null
   }>({})
+
+  const usuario = getUserSession()
+  const acessoExpirado = isAccessExpired(usuario)
+
+  const addToast = (message: string, type: ToastType = 'info') => {
+    const id = Date.now().toString()
+    setToasts((prev) => [...prev, { id, message, type }])
+  }
+
+  const handleNovoAgendamentoClick = () => {
+    if (acessoExpirado) {
+      addToast('Seu acesso expirou. Você pode apenas visualizar os dados existentes. Entre em contato com o administrador para renovar seu acesso.', 'warning')
+      return
+    }
+    const dateStr = selectedDate.toISOString().split('T')[0]
+    setAgendamentoModalMode('create')
+    setSelectedAgendamentoId(null)
+    setModalInitialData({ data: dateStr })
+    setShowAgendamentoModal(true)
+  }
 
   // Filtros
   const [filtroStatus, setFiltroStatus] = useState<string>('todos')
@@ -339,6 +364,10 @@ function AgendaDia() {
   }, [config])
 
   const handleTimeSlotClick = (time: string) => {
+    if (acessoExpirado) {
+      addToast('Seu acesso expirou. Você pode apenas visualizar os dados existentes. Entre em contato com o administrador para renovar seu acesso.', 'warning')
+      return
+    }
     if (!agendamentos[time] || agendamentos[time].length === 0) {
       const dateStr = selectedDate.toISOString().split('T')[0]
       setModalInitialData({
@@ -375,11 +404,9 @@ function AgendaDia() {
             <AgendaViewToggle />
             <button
               className="btn-primary"
-              onClick={() => {
-                const dateStr = selectedDate.toISOString().split('T')[0]
-                setModalInitialData({ data: dateStr })
-                setShowAgendamentoModal(true)
-              }}
+              onClick={handleNovoAgendamentoClick}
+              disabled={acessoExpirado}
+              title={acessoExpirado ? 'Seu acesso expirou. Você pode apenas visualizar os dados existentes.' : ''}
             >
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <line x1="12" y1="5" x2="12" y2="19"></line>
@@ -627,16 +654,23 @@ function AgendaDia() {
       {/* Modal de Agendamento */}
       <AgendamentoModal
         isOpen={showAgendamentoModal}
-        mode="create"
+        mode={agendamentoModalMode}
+        agendamentoId={agendamentoModalMode === 'edit' ? selectedAgendamentoId : null}
         initialData={modalInitialData.data || null}
         initialHorario={modalInitialData.horario || null}
         initialClienteId={modalInitialData.clienteId || null}
         onClose={() => {
           setShowAgendamentoModal(false)
           setModalInitialData({})
+          setSelectedAgendamentoId(null)
+          setAgendamentoModalMode('create')
         }}
         onSuccess={() => {
           loadAgendamentos()
+          setShowAgendamentoModal(false)
+          setModalInitialData({})
+          setSelectedAgendamentoId(null)
+          setAgendamentoModalMode('create')
         }}
       />
 
@@ -649,8 +683,14 @@ function AgendaDia() {
           setSelectedAgendamentoId(null)
         }}
         onEdit={(id) => {
-          // TODO: Abrir modal de edição
-          console.log('Editar agendamento:', id)
+          if (acessoExpirado) {
+            addToast('Seu acesso expirou. Você pode apenas visualizar os dados existentes. Entre em contato com o administrador para renovar seu acesso.', 'warning')
+            return
+          }
+          setSelectedAgendamentoId(id)
+          setAgendamentoModalMode('edit')
+          setShowDetalhesModal(false)
+          setShowAgendamentoModal(true)
         }}
         onDelete={() => {
           loadAgendamentos()
@@ -659,6 +699,9 @@ function AgendaDia() {
           loadAgendamentos()
         }}
       />
+
+      {/* Toast Container */}
+      <ToastContainer toasts={toasts} onClose={(id) => setToasts((prev) => prev.filter((t) => t.id !== id))} />
     </div>
   )
 }

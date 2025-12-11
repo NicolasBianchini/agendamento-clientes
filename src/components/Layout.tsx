@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { Outlet, useLocation, useNavigate } from 'react-router-dom'
-import { getUserSession, logout, isAuthenticated, isAdminMaster } from '../services/auth'
+import { getUserSession, logout, isAuthenticated, isAdminMaster, isAccessExpired, isAccessExpiring, getDaysUntilExpiration } from '../services/auth'
+import AcessoExpiradoModal from './AcessoExpiradoModal'
 import './Layout.css'
 
 interface LayoutProps {
@@ -11,6 +12,9 @@ function Layout({ userName }: LayoutProps) {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [currentUserName, setCurrentUserName] = useState(userName || 'Usuário')
+  const [showAcessoExpiradoModal, setShowAcessoExpiradoModal] = useState(false)
+  const [modalTipo, setModalTipo] = useState<'expirado' | 'expirando'>('expirado')
+  const [diasRestantes, setDiasRestantes] = useState<number | null>(null)
   const location = useLocation()
   const navigate = useNavigate()
 
@@ -26,6 +30,41 @@ function Layout({ userName }: LayoutProps) {
       setCurrentUserName(usuario.nome)
     }
   }, [navigate, location.pathname]) // Re-executar quando a rota mudar para atualizar menu
+
+  // Verificar acesso expirado ou expirando
+  useEffect(() => {
+    const usuario = getUserSession()
+    if (!usuario) return
+
+    // Verificar se já expirou (prioridade)
+    if (isAccessExpired(usuario)) {
+      setModalTipo('expirado')
+      setDiasRestantes(null)
+      setShowAcessoExpiradoModal(true)
+      return
+    }
+
+    // Verificar se está expirando em 7 dias ou menos (incluindo hoje)
+    if (isAccessExpiring(usuario)) {
+      const dias = getDaysUntilExpiration(usuario)
+      setDiasRestantes(dias)
+
+      // Se expira hoje (0 dias), mostrar como "expirando" mas com mensagem especial
+      // Se já expirou, não chegaria aqui (já foi tratado acima)
+
+      // Verificar se já mostramos o modal hoje
+      const hoje = new Date().toISOString().split('T')[0] // YYYY-MM-DD
+      const lastShownKey = `acesso_expirando_modal_${usuario.id}_${hoje}`
+      const lastShown = localStorage.getItem(lastShownKey)
+
+      // Se não mostramos hoje, mostrar e marcar como mostrado
+      if (!lastShown) {
+        setModalTipo('expirando')
+        setShowAcessoExpiradoModal(true)
+        localStorage.setItem(lastShownKey, 'true')
+      }
+    }
+  }, []) // Executar apenas uma vez ao montar
 
   const handleLogout = () => {
     logout()
@@ -246,6 +285,14 @@ function Layout({ userName }: LayoutProps) {
         <p>AgendaPro © 2024</p>
         <p className="version">v1.0.0</p>
       </footer>
+
+      {/* Modal de Acesso Expirado/Expirando */}
+      <AcessoExpiradoModal
+        isOpen={showAcessoExpiradoModal}
+        onClose={() => setShowAcessoExpiradoModal(false)}
+        tipo={modalTipo}
+        diasRestantes={diasRestantes}
+      />
     </div>
   )
 }

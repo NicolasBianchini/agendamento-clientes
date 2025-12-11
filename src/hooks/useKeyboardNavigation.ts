@@ -16,12 +16,28 @@ export function useKeyboardNavigation(
 ) {
   const modalRef = useRef<HTMLDivElement>(null)
   const previousActiveElement = useRef<HTMLElement | null>(null)
+  const hasFocusedRef = useRef(false)
+  const wasOpenRef = useRef(false)
 
   useEffect(() => {
-    if (!isOpen) return
+    if (!isOpen) {
+      // Resetar flag quando modal fecha
+      if (wasOpenRef.current) {
+        hasFocusedRef.current = false
+        wasOpenRef.current = false
+        // Restaurar foco ao elemento anterior ao fechar
+        previousActiveElement.current?.focus()
+      }
+      return
+    }
 
-    // Salvar elemento ativo antes de abrir o modal
-    previousActiveElement.current = document.activeElement as HTMLElement
+    // Marcar que o modal está aberto
+    wasOpenRef.current = true
+
+    // Salvar elemento ativo antes de abrir o modal (apenas na primeira vez)
+    if (!hasFocusedRef.current) {
+      previousActiveElement.current = document.activeElement as HTMLElement
+    }
 
     const handleKeyDown = (e: KeyboardEvent) => {
       // Fechar com ESC
@@ -57,20 +73,33 @@ export function useKeyboardNavigation(
 
     document.addEventListener('keydown', handleKeyDown)
 
-    // Focar primeiro elemento focável ao abrir
-    if (modalRef.current) {
-      const firstFocusable = modalRef.current.querySelector<HTMLElement>(
-        'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
-      )
-      firstFocusable?.focus()
+    // Focar primeiro elemento focável ao abrir (apenas uma vez, quando o modal abre)
+    // Não focar se já há um elemento focado dentro do modal (evita perder foco durante digitação)
+    if (!hasFocusedRef.current && modalRef.current) {
+      const timeoutId = setTimeout(() => {
+        // Verificar se já há um elemento focado dentro do modal
+        const activeElement = document.activeElement
+        const isElementInsideModal = modalRef.current?.contains(activeElement as Node)
+
+        if (modalRef.current && !isElementInsideModal) {
+          const firstFocusable = modalRef.current.querySelector<HTMLElement>(
+            'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+          )
+          firstFocusable?.focus()
+        }
+        hasFocusedRef.current = true
+      }, 0)
+
+      return () => {
+        clearTimeout(timeoutId)
+        document.removeEventListener('keydown', handleKeyDown)
+      }
     }
 
     return () => {
       document.removeEventListener('keydown', handleKeyDown)
-      // Restaurar foco ao elemento anterior ao fechar
-      previousActiveElement.current?.focus()
     }
-  }, [isOpen, onClose, options])
+  }, [isOpen, onClose, options?.closeOnEscape, options?.trapFocus])
 
   return modalRef
 }

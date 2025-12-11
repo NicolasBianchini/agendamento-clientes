@@ -152,12 +152,12 @@ function NovoServicoModal({ isOpen, onClose, onSuccess }: NovoServicoModalProps)
     }
   }
 
-  const isFormValid = nome.trim() && parseCurrency(valor) > 0 && !errors.nome && !errors.valor
-
   const modalRef = useKeyboardNavigation(isOpen, handleClose, {
     closeOnEscape: true,
     trapFocus: true,
   })
+
+  const isFormValid = nome.trim() && parseCurrency(valor) > 0 && !errors.nome && !errors.valor
 
   if (!isOpen) return null
 

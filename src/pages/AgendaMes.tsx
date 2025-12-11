@@ -1,8 +1,11 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { agendamentosService } from '../services/firestore'
+import { getUserSession, isAccessExpired } from '../services/auth'
 import AgendaViewToggle from '../components/AgendaViewToggle'
 import AgendamentoModal from '../components/AgendamentoModal'
+import ToastContainer from '../components/ToastContainer'
+import type { ToastType } from '../components/Toast'
 import './AgendaMes.css'
 
 function AgendaMes() {
@@ -11,11 +14,30 @@ function AgendaMes() {
   const [agendamentosCount, setAgendamentosCount] = useState<Record<string, number>>({})
   const [isLoading, setIsLoading] = useState(true)
   const [showAgendamentoModal, setShowAgendamentoModal] = useState(false)
+  const [toasts, setToasts] = useState<Array<{ id: string; message: string; type: ToastType }>>([])
   const [modalInitialData, setModalInitialData] = useState<{
     clienteId?: string | null
     data?: string | null
     horario?: string | null
   }>({})
+
+  const usuario = getUserSession()
+  const acessoExpirado = isAccessExpired(usuario)
+
+  const addToast = (message: string, type: ToastType = 'info') => {
+    const id = Date.now().toString()
+    setToasts((prev) => [...prev, { id, message, type }])
+  }
+
+  const handleNovoAgendamentoClick = () => {
+    if (acessoExpirado) {
+      addToast('Seu acesso expirou. Você pode apenas visualizar os dados existentes. Entre em contato com o administrador para renovar seu acesso.', 'warning')
+      return
+    }
+    const dateStr = selectedMonth.toISOString().split('T')[0]
+    setModalInitialData({ data: dateStr })
+    setShowAgendamentoModal(true)
+  }
 
   useEffect(() => {
     loadAgendamentos()
@@ -129,6 +151,12 @@ function AgendaMes() {
 
   const handleDayClick = (date: Date | null) => {
     if (!date || !isCurrentMonth(date)) return
+
+    if (acessoExpirado) {
+      addToast('Seu acesso expirou. Você pode apenas visualizar os dados existentes. Entre em contato com o administrador para renovar seu acesso.', 'warning')
+      return
+    }
+
     // Navegar para visualização diária com a data selecionada
     navigate(`/agenda/dia?date=${formatDateKey(date)}`)
   }
@@ -146,10 +174,9 @@ function AgendaMes() {
             <AgendaViewToggle />
             <button
               className="btn-primary"
-              onClick={() => {
-                setModalInitialData({})
-                setShowAgendamentoModal(true)
-              }}
+              onClick={handleNovoAgendamentoClick}
+              disabled={acessoExpirado}
+              title={acessoExpirado ? 'Seu acesso expirou. Você pode apenas visualizar os dados existentes.' : ''}
             >
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <line x1="12" y1="5" x2="12" y2="19"></line>
@@ -263,6 +290,9 @@ function AgendaMes() {
           <span>Outro mês</span>
         </div>
       </div>
+
+      {/* Toast Container */}
+      <ToastContainer toasts={toasts} onClose={(id) => setToasts((prev) => prev.filter((t) => t.id !== id))} />
     </div>
   )
 }

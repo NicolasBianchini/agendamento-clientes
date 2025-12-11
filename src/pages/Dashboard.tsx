@@ -1,11 +1,14 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { clientesService, agendamentosService, servicosService } from '../services/firestore'
+import { getUserSession, isAccessExpired } from '../services/auth'
 import { useConfiguracoes } from '../hooks/useConfiguracoes'
 import { formatarMoeda } from '../utils/formatacao'
 import NovoClienteModal from '../components/NovoClienteModal'
 import AgendamentoModal from '../components/AgendamentoModal'
 import AgendamentoDetalhesModal from '../components/AgendamentoDetalhesModal'
+import ToastContainer from '../components/ToastContainer'
+import type { ToastType } from '../components/Toast'
 import './Dashboard.css'
 
 interface StatCard {
@@ -33,6 +36,8 @@ function Dashboard() {
   const [showAgendamentoModal, setShowAgendamentoModal] = useState(false)
   const [showDetalhesModal, setShowDetalhesModal] = useState(false)
   const [selectedAgendamentoId, setSelectedAgendamentoId] = useState<string | null>(null)
+  const [agendamentoModalMode, setAgendamentoModalMode] = useState<'create' | 'edit'>('create')
+  const [toasts, setToasts] = useState<Array<{ id: string; message: string; type: ToastType }>>([])
   const [stats, setStats] = useState({
     totalClientes: 0,
     agendamentosHoje: 0,
@@ -40,6 +45,32 @@ function Dashboard() {
     faturadoHoje: 0,
   })
   const [proximosAgendamentos, setProximosAgendamentos] = useState<Appointment[]>([])
+
+  const usuario = getUserSession()
+  const acessoExpirado = isAccessExpired(usuario)
+
+  const addToast = (message: string, type: ToastType = 'info') => {
+    const id = Date.now().toString()
+    setToasts((prev) => [...prev, { id, message, type }])
+  }
+
+  const handleNovoClienteClick = () => {
+    if (acessoExpirado) {
+      addToast('Seu acesso expirou. Você pode apenas visualizar os dados existentes. Entre em contato com o administrador para renovar seu acesso.', 'warning')
+      return
+    }
+    setShowNovoClienteModal(true)
+  }
+
+  const handleNovoAgendamentoClick = () => {
+    if (acessoExpirado) {
+      addToast('Seu acesso expirou. Você pode apenas visualizar os dados existentes. Entre em contato com o administrador para renovar seu acesso.', 'warning')
+      return
+    }
+    setAgendamentoModalMode('create')
+    setSelectedAgendamentoId(null)
+    setShowAgendamentoModal(true)
+  }
 
   const loadData = async () => {
     setIsLoading(true)
@@ -483,7 +514,9 @@ function Dashboard() {
           <div className="quick-actions">
             <button
               className="quick-action-btn"
-              onClick={() => setShowNovoClienteModal(true)}
+              onClick={handleNovoClienteClick}
+              disabled={acessoExpirado}
+              title={acessoExpirado ? 'Seu acesso expirou. Você pode apenas visualizar os dados existentes.' : ''}
             >
               <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <line x1="12" y1="5" x2="12" y2="19"></line>
@@ -493,7 +526,9 @@ function Dashboard() {
             </button>
             <button
               className="quick-action-btn"
-              onClick={() => setShowAgendamentoModal(true)}
+              onClick={handleNovoAgendamentoClick}
+              disabled={acessoExpirado}
+              title={acessoExpirado ? 'Seu acesso expirou. Você pode apenas visualizar os dados existentes.' : ''}
             >
               <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <line x1="12" y1="5" x2="12" y2="19"></line>
@@ -529,10 +564,18 @@ function Dashboard() {
       {/* Modal de Agendamento */}
       <AgendamentoModal
         isOpen={showAgendamentoModal}
-        mode="create"
-        onClose={() => setShowAgendamentoModal(false)}
+        mode={agendamentoModalMode}
+        agendamentoId={agendamentoModalMode === 'edit' ? selectedAgendamentoId : null}
+        onClose={() => {
+          setShowAgendamentoModal(false)
+          setSelectedAgendamentoId(null)
+          setAgendamentoModalMode('create')
+        }}
         onSuccess={() => {
           loadData()
+          setShowAgendamentoModal(false)
+          setSelectedAgendamentoId(null)
+          setAgendamentoModalMode('create')
         }}
       />
 
@@ -544,6 +587,16 @@ function Dashboard() {
           setShowDetalhesModal(false)
           setSelectedAgendamentoId(null)
         }}
+        onEdit={(id) => {
+          if (acessoExpirado) {
+            addToast('Seu acesso expirou. Você pode apenas visualizar os dados existentes. Entre em contato com o administrador para renovar seu acesso.', 'warning')
+            return
+          }
+          setSelectedAgendamentoId(id)
+          setAgendamentoModalMode('edit')
+          setShowDetalhesModal(false)
+          setShowAgendamentoModal(true)
+        }}
         onDelete={() => {
           loadData()
         }}
@@ -551,6 +604,9 @@ function Dashboard() {
           loadData()
         }}
       />
+
+      {/* Toast Container */}
+      <ToastContainer toasts={toasts} onClose={(id) => setToasts((prev) => prev.filter((t) => t.id !== id))} />
     </div>
   )
 }

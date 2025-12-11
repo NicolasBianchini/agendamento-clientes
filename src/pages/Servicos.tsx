@@ -1,7 +1,10 @@
 import { useState, useEffect } from 'react'
 import { servicosService, agendamentosService } from '../services/firestore'
+import { getUserSession, isAccessExpired } from '../services/auth'
 import NovoServicoModal from '../components/NovoServicoModal'
 import EditarServicoModal from '../components/EditarServicoModal'
+import ToastContainer from '../components/ToastContainer'
+import type { ToastType } from '../components/Toast'
 import './Servicos.css'
 
 interface Servico {
@@ -27,6 +30,23 @@ function Servicos() {
   const [showNovoServicoModal, setShowNovoServicoModal] = useState(false)
   const [showEditarServicoModal, setShowEditarServicoModal] = useState(false)
   const [servicoToEdit, setServicoToEdit] = useState<Servico | null>(null)
+  const [toasts, setToasts] = useState<Array<{ id: string; message: string; type: ToastType }>>([])
+
+  const usuario = getUserSession()
+  const acessoExpirado = isAccessExpired(usuario)
+
+  const addToast = (message: string, type: ToastType = 'info') => {
+    const id = Date.now().toString()
+    setToasts((prev) => [...prev, { id, message, type }])
+  }
+
+  const handleNovoServicoClick = () => {
+    if (acessoExpirado) {
+      addToast('Seu acesso expirou. Você pode apenas visualizar os dados existentes. Entre em contato com o administrador para renovar seu acesso.', 'warning')
+      return
+    }
+    setShowNovoServicoModal(true)
+  }
 
   useEffect(() => {
     loadServicos()
@@ -39,11 +59,11 @@ function Servicos() {
   const loadServicos = async () => {
     setIsLoading(true)
     setError(null)
-    
+
     try {
       // Buscar serviços no Firestore
       const servicosData = await servicosService.getAll()
-      
+
       // Buscar total de agendamentos para cada serviço
       const servicosComAgendamentos = await Promise.all(
         servicosData.map(async (servico: any) => {
@@ -52,7 +72,7 @@ function Servicos() {
           const agendamentosDoServico = todosAgendamentos.filter(
             (ag: any) => ag.servicoId === servico.id
           )
-          
+
           return {
             ...servico,
             totalAgendamentos: agendamentosDoServico.length,
@@ -61,7 +81,7 @@ function Servicos() {
           }
         })
       )
-      
+
       setServicos(servicosComAgendamentos as Servico[])
     } catch (err) {
       setError('Erro ao carregar serviços. Tente novamente.')
@@ -105,9 +125,9 @@ function Servicos() {
       await servicosService.update(servico.id, {
         ativo: !servico.ativo,
       })
-      
+
       // Atualizar estado local
-      setServicos(servicos.map(s => 
+      setServicos(servicos.map(s =>
         s.id === servico.id ? { ...s, ativo: !s.ativo } : s
       ))
     } catch (error) {
@@ -138,7 +158,7 @@ function Servicos() {
       const agendamentosDoServico = todosAgendamentos.filter(
         (ag: any) => ag.servicoId === servicoToDelete.id
       )
-      
+
       if (agendamentosDoServico.length > 0) {
         alert(`Este serviço possui ${agendamentosDoServico.length} agendamento(s). Não é possível excluir.`)
         setShowDeleteModal(false)
@@ -237,7 +257,9 @@ function Servicos() {
 
         <button
           className="btn-primary"
-          onClick={() => setShowNovoServicoModal(true)}
+          onClick={handleNovoServicoClick}
+          disabled={acessoExpirado}
+          title={acessoExpirado ? 'Seu acesso expirou. Você pode apenas visualizar os dados existentes.' : ''}
         >
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
             <line x1="12" y1="5" x2="12" y2="19"></line>
@@ -396,6 +418,9 @@ function Servicos() {
           loadServicos()
         }}
       />
+
+      {/* Toast Container */}
+      <ToastContainer toasts={toasts} onClose={(id) => setToasts((prev) => prev.filter((t) => t.id !== id))} />
     </div>
   )
 }

@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { atualizarUsuario } from '../services/usuarios'
 import { type Usuario, type UserRole } from '../services/auth'
 import { useKeyboardNavigation } from '../hooks/useKeyboardNavigation'
+import { formatarDataParaInput } from '../utils/formatacao'
 import './EditarUsuarioModal.css'
 
 interface EditarUsuarioModalProps {
@@ -40,8 +41,8 @@ function EditarUsuarioModal({ isOpen, onClose, onSuccess, usuario }: EditarUsuar
       setSenha('')
       setAlterarSenha(false)
       if (usuario.dataExpiracao) {
-        const data = new Date(usuario.dataExpiracao)
-        setDataExpiracao(data.toISOString().split('T')[0])
+        // Converter data para formato YYYY-MM-DD sem problemas de timezone
+        setDataExpiracao(formatarDataParaInput(usuario.dataExpiracao))
         setSemExpiracao(false)
       } else {
         setDataExpiracao('')

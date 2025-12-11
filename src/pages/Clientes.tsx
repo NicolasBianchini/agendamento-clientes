@@ -1,8 +1,11 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { clientesService, agendamentosService } from '../services/firestore'
+import { getUserSession, isAccessExpired } from '../services/auth'
 import NovoClienteModal from '../components/NovoClienteModal'
 import EditarClienteModal from '../components/EditarClienteModal'
+import ToastContainer from '../components/ToastContainer'
+import type { ToastType } from '../components/Toast'
 import './Clientes.css'
 
 interface Cliente {
@@ -29,6 +32,23 @@ function Clientes() {
   const [showNovoClienteModal, setShowNovoClienteModal] = useState(false)
   const [showEditarClienteModal, setShowEditarClienteModal] = useState(false)
   const [clienteToEdit, setClienteToEdit] = useState<Cliente | null>(null)
+  const [toasts, setToasts] = useState<Array<{ id: string; message: string; type: ToastType }>>([])
+
+  const usuario = getUserSession()
+  const acessoExpirado = isAccessExpired(usuario)
+
+  const addToast = (message: string, type: ToastType = 'info') => {
+    const id = Date.now().toString()
+    setToasts((prev) => [...prev, { id, message, type }])
+  }
+
+  const handleNovoClienteClick = () => {
+    if (acessoExpirado) {
+      addToast('Seu acesso expirou. Você pode apenas visualizar os dados existentes. Entre em contato com o administrador para renovar seu acesso.', 'warning')
+      return
+    }
+    setShowNovoClienteModal(true)
+  }
 
   useEffect(() => {
     loadClientes()
@@ -41,11 +61,11 @@ function Clientes() {
   const loadClientes = async () => {
     setIsLoading(true)
     setError(null)
-    
+
     try {
       // Buscar clientes no Firestore
       const clientesData = await clientesService.getAll()
-      
+
       // Buscar total de agendamentos para cada cliente
       const clientesComAgendamentos = await Promise.all(
         clientesData.map(async (cliente: any) => {
@@ -57,7 +77,7 @@ function Clientes() {
           }
         })
       )
-      
+
       setClientes(clientesComAgendamentos as Cliente[])
     } catch (err) {
       setError('Erro ao carregar clientes. Tente novamente.')
@@ -211,7 +231,9 @@ function Clientes() {
 
           <button
             className="btn-primary"
-            onClick={() => setShowNovoClienteModal(true)}
+            onClick={handleNovoClienteClick}
+            disabled={acessoExpirado}
+            title={acessoExpirado ? 'Seu acesso expirou. Você pode apenas visualizar os dados existentes.' : ''}
           >
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <line x1="12" y1="5" x2="12" y2="19"></line>
@@ -238,7 +260,12 @@ function Clientes() {
               : 'Comece cadastrando seu primeiro cliente'}
           </p>
           {!searchTerm && (
-            <button className="btn-primary" onClick={() => setShowNovoClienteModal(true)}>
+            <button
+              className="btn-primary"
+              onClick={handleNovoClienteClick}
+              disabled={acessoExpirado}
+              title={acessoExpirado ? 'Seu acesso expirou. Você pode apenas visualizar os dados existentes.' : ''}
+            >
               Cadastrar Cliente
             </button>
           )}
@@ -385,6 +412,9 @@ function Clientes() {
           loadClientes()
         }}
       />
+
+      {/* Toast Container */}
+      <ToastContainer toasts={toasts} onClose={(id) => setToasts((prev) => prev.filter((t) => t.id !== id))} />
     </div>
   )
 }

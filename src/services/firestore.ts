@@ -138,6 +138,13 @@ export const createDocument = async <T = any>(
   data: Omit<T, 'id'>
 ): Promise<string> => {
   try {
+    // Verificar se o acesso está expirado antes de criar
+    const { getUserSession, isAccessExpired } = await import('./auth')
+    const usuario = getUserSession()
+    if (isAccessExpired(usuario)) {
+      throw new Error('Seu acesso expirou. Você pode apenas visualizar os dados existentes. Entre em contato com o administrador para renovar seu acesso.')
+    }
+
     const userId = getCurrentUserId()
     // Adicionar userId ao documento
     const docRef = await addDoc(collection(db, collectionName), {
