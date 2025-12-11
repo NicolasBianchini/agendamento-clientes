@@ -1,6 +1,7 @@
 import { createContext, useContext, useState, useEffect } from 'react'
 import type { ReactNode } from 'react'
 import { configuracoesService } from '../services/firestore'
+import { isAuthenticated } from '../services/auth'
 import type { ConfiguracoesUsuario } from '../types/configuracoes'
 
 interface ConfiguracoesContextType {
@@ -16,6 +17,55 @@ export function ConfiguracoesProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true)
 
   const loadConfiguracoes = async () => {
+    // Se não estiver autenticado, usar apenas valores padrão com WhatsApp do admin master
+    if (!isAuthenticated()) {
+      try {
+        // Tentar buscar apenas o WhatsApp do admin master (não requer autenticação)
+        const whatsappSuporteAdmin = await configuracoesService.getWhatsappSuporteAdminMaster()
+        setConfig({
+          userId: '',
+          horarioInicial: '06:00',
+          horarioFinal: '23:00',
+          intervaloMinutos: 30,
+          tema: 'claro',
+          template: 'padrao',
+          visualizacaoAgendaPadrao: 'dia',
+          notificacoesEmail: false,
+          notificacoesPush: false,
+          lembrarAgendamentos: true,
+          moeda: 'BRL',
+          formatoData: 'DD/MM/YYYY',
+          formatoHora: '24h',
+          mensagensAutomaticas: false,
+          whatsappSuporte: whatsappSuporteAdmin,
+        })
+      } catch (error) {
+        console.error('Erro ao carregar WhatsApp de suporte:', error)
+        // Usar valores padrão sem WhatsApp em caso de erro
+        setConfig({
+          userId: '',
+          horarioInicial: '06:00',
+          horarioFinal: '23:00',
+          intervaloMinutos: 30,
+          tema: 'claro',
+          template: 'padrao',
+          visualizacaoAgendaPadrao: 'dia',
+          notificacoesEmail: false,
+          notificacoesPush: false,
+          lembrarAgendamentos: true,
+          moeda: 'BRL',
+          formatoData: 'DD/MM/YYYY',
+          formatoHora: '24h',
+          mensagensAutomaticas: false,
+          whatsappSuporte: '',
+        })
+      } finally {
+        setLoading(false)
+      }
+      return
+    }
+
+    // Se estiver autenticado, carregar configurações completas
     try {
       setLoading(true)
       const configuracoes = await configuracoesService.getComPadroes()
@@ -53,10 +103,17 @@ export function ConfiguracoesProvider({ children }: { children: ReactNode }) {
       loadConfiguracoes()
     }
 
+    // Escutar mudanças de autenticação
+    const handleAuthChange = () => {
+      loadConfiguracoes()
+    }
+
     window.addEventListener('configuracoes-updated', handleConfigUpdate)
+    window.addEventListener('storage', handleAuthChange) // Escutar mudanças no localStorage
 
     return () => {
       window.removeEventListener('configuracoes-updated', handleConfigUpdate)
+      window.removeEventListener('storage', handleAuthChange)
     }
   }, [])
 

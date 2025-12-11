@@ -79,6 +79,7 @@ export async function login(credentials: LoginCredentials): Promise<Usuario> {
   try {
     // Buscar usuário no Firestore
     const emailNormalized = email.toLowerCase().trim()
+    console.log('🔐 [LOGIN] Tentando fazer login com email:', emailNormalized)
 
     const q = query(
       collection(db, 'usuarios'),
@@ -88,15 +89,18 @@ export async function login(credentials: LoginCredentials): Promise<Usuario> {
     const querySnapshot = await getDocs(q)
 
     if (querySnapshot.empty) {
+      console.log('❌ [LOGIN] Usuário não encontrado com email:', emailNormalized)
       throw new Error('Email ou senha incorretos')
     }
 
     // Pegar o primeiro documento (deve haver apenas um com esse email)
     const doc = querySnapshot.docs[0]
     const userData = doc.data()
+    console.log('✅ [LOGIN] Usuário encontrado:', { id: doc.id, nome: userData.nome, ativo: userData.ativo })
 
     // Verificar se o usuário está ativo
     if (!userData.ativo) {
+      console.log('❌ [LOGIN] Usuário inativo')
       throw new Error('Usuário inativo. Entre em contato com o administrador.')
     }
 
@@ -105,7 +109,15 @@ export async function login(credentials: LoginCredentials): Promise<Usuario> {
 
     // Verificar senha
     const senhaHash = await hashPassword(senhaTrimmed)
-    if (userData.senhaHash !== senhaHash) {
+    const senhaCorreta = userData.senhaHash === senhaHash
+    console.log('🔐 [LOGIN] Verificação de senha:', {
+      senhaHashGerado: senhaHash.substring(0, 10) + '...',
+      senhaHashArmazenado: userData.senhaHash ? userData.senhaHash.substring(0, 10) + '...' : 'não encontrado',
+      senhaCorreta
+    })
+
+    if (!senhaCorreta) {
+      console.log('❌ [LOGIN] Senha incorreta')
       throw new Error('Email ou senha incorretos')
     }
 
@@ -126,12 +138,24 @@ export async function login(credentials: LoginCredentials): Promise<Usuario> {
 
     // Salvar na sessão
     saveUserSession(usuario)
+    console.log('✅ [LOGIN] Login bem-sucedido! Usuário salvo na sessão.')
 
     return usuario
   } catch (error: any) {
+    console.error('❌ [LOGIN] Erro durante login:', {
+      message: error.message,
+      code: error.code,
+      stack: error.stack
+    })
+
     // Se for erro de permissão do Firestore
     if (error.code === 'permission-denied') {
       throw new Error('Erro de permissão. Verifique as regras do Firestore.')
+    }
+
+    // Se for erro de rede/Firebase
+    if (error.code === 'unavailable' || error.code === 'deadline-exceeded') {
+      throw new Error('Erro de conexão. Verifique sua internet e tente novamente.')
     }
 
     // Se já for uma mensagem de erro nossa, apenas relançar
