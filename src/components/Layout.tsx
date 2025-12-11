@@ -43,25 +43,12 @@ function Layout({ userName }: LayoutProps) {
 
       if (!usuario) return
 
-      console.log('🔍 [LAYOUT] Verificando acesso do usuário:', {
-        id: usuario.id,
-        nome: usuario.nome,
-        dataExpiracao: usuario.dataExpiracao,
-        acessoPermanente: !usuario.dataExpiracao,
-        isExpired: isAccessExpired(usuario),
-        isExpiring: isAccessExpiring(usuario)
-      })
-
-      // Se dataExpiracao é null ou vazio, é acesso permanente - não mostrar modal
       if (!usuario.dataExpiracao || usuario.dataExpiracao.trim() === '') {
-        console.log('✅ [LAYOUT] Acesso permanente - não mostrar modal')
         setShowAcessoExpiradoModal(false)
         return
       }
 
-      // Verificar se já expirou (prioridade)
       if (isAccessExpired(usuario)) {
-        console.log('❌ [LAYOUT] Acesso expirado - mostrando modal')
         setModalTipo('expirado')
         setDiasRestantes(null)
         setShowAcessoExpiradoModal(true)
@@ -78,24 +65,19 @@ function Layout({ userName }: LayoutProps) {
         const lastShownKey = `acesso_expirando_modal_${usuario.id}_${hoje}`
         const lastShown = localStorage.getItem(lastShownKey)
 
-        // Se não mostramos hoje, mostrar e marcar como mostrado
         if (!lastShown) {
-          console.log('⚠️ [LAYOUT] Acesso expirando em', dias, 'dias - mostrando modal')
           setModalTipo('expirando')
           setShowAcessoExpiradoModal(true)
           localStorage.setItem(lastShownKey, 'true')
         }
       } else {
-        // Acesso válido e não está expirando - garantir que modal não está aberto
         setShowAcessoExpiradoModal(false)
       }
     }
 
     verificarAcesso()
 
-    // Escutar evento de acesso renovado
     const handleAcessoRenovado = () => {
-      console.log('🔄 [LAYOUT] Evento de acesso renovado recebido - atualizando...')
       verificarAcesso()
     }
 

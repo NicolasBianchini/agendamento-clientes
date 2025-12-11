@@ -138,14 +138,10 @@ function AgendaDia() {
   const loadAgendamentos = async () => {
     setIsLoading(true)
     try {
-      // Formatar data para busca
       const dateStr = selectedDate.toISOString().split('T')[0]
 
-      // Buscar agendamentos do dia no Firestore
       const agendamentosDoDia = await agendamentosService.getByDate(dateStr)
-      console.log('🔍 Agendamentos do dia:', agendamentosDoDia.length, agendamentosDoDia)
 
-      // Buscar dados de clientes e serviços
       const [clientesData, servicosData] = await Promise.all([
         clientesService.getAll(),
         servicosService.getAll(),
@@ -154,7 +150,6 @@ function AgendaDia() {
       setClientes(clientesData.map((c: any) => ({ id: c.id, nome: c.nome })))
       setServicos(servicosData.map((s: any) => ({ id: s.id, nome: s.nome })))
 
-      // Primeiro, mapear todos os agendamentos com dados completos
       const todosAgendamentos: Agendamento[] = agendamentosDoDia.map((ag: any) => {
         const cliente = clientesData.find((c: any) => c.id === ag.clienteId)
         const servico = servicosData.find((s: any) => s.id === ag.servicoId)
@@ -170,10 +165,8 @@ function AgendaDia() {
         }
       })
 
-      // Ordenar por horário
       todosAgendamentos.sort((a, b) => a.horario.localeCompare(b.horario))
 
-      // Agrupar agendamentos consecutivos do mesmo cliente e serviço
       const agendamentosAgrupados: (Agendamento | AgendamentoAgrupado)[] = []
       const processados = new Set<string>()
 
@@ -184,7 +177,6 @@ function AgendaDia() {
         const grupo: Agendamento[] = [agendamentoAtual]
         processados.add(agendamentoAtual.id)
 
-        // Verificar se há agendamentos consecutivos (mesmo cliente, serviço, diferença de 30 minutos)
         for (let j = i + 1; j < todosAgendamentos.length; j++) {
           const proximo = todosAgendamentos[j]
 
@@ -193,14 +185,12 @@ function AgendaDia() {
             proximo.clienteId === agendamentoAtual.clienteId &&
             proximo.servicoId === agendamentoAtual.servicoId
           ) {
-            // Verificar se é consecutivo (diferença de 30 minutos)
             const horarioAtual = agendamentoAtual.horario.split(':').map(Number)
             const horarioProximo = proximo.horario.split(':').map(Number)
 
             if (horarioAtual.length === 2 && horarioProximo.length === 2) {
               const minutosProximo = horarioProximo[0] * 60 + horarioProximo[1]
 
-              // Verificar se o último horário do grupo é 30 minutos antes do próximo
               const ultimoHorario = grupo[grupo.length - 1].horario.split(':').map(Number)
               const minutosUltimo = ultimoHorario[0] * 60 + ultimoHorario[1]
 
@@ -218,23 +208,20 @@ function AgendaDia() {
           }
         }
 
-        // Se houver múltiplos agendamentos, criar um grupo
         if (grupo.length > 1) {
           agendamentosAgrupados.push({
             ids: grupo.map(g => g.id),
             cliente: grupo[0].cliente,
             servico: grupo[0].servico,
             horarios: grupo.map(g => g.horario).sort(),
-            status: grupo[0].status, // Usar status do primeiro (ou poderia verificar se todos são iguais)
+            status: grupo[0].status,
             isAgrupado: true,
           })
         } else {
-          // Agendamento individual
           agendamentosAgrupados.push(grupo[0])
         }
       }
 
-      // Organizar por horário para exibição
       const agendamentosPorHorario: Record<string, (Agendamento | AgendamentoAgrupado)[]> = {}
 
       agendamentosAgrupados.forEach((ag) => {
@@ -257,7 +244,6 @@ function AgendaDia() {
         }
       })
 
-      console.log('📋 Agendamentos por horário (agrupados):', agendamentosPorHorario)
       setAllAgendamentos(agendamentosPorHorario as any)
       applyFilters(agendamentosPorHorario as any)
     } catch (error) {
@@ -334,7 +320,6 @@ function AgendaDia() {
     return diff < 30 * 60 * 1000 // 30 minutos
   }
 
-  // Usar useMemo para recalcular quando as configurações mudarem
   const timeSlots = useMemo(() => {
     if (!config) {
       // Valores padrão enquanto carrega
@@ -546,10 +531,8 @@ function AgendaDia() {
             const agendamentosNoHorario = agendamentos[time] || []
             const temAgendamento = agendamentosNoHorario.length > 0
 
-            // Verificar se este horário está ocupado por um agendamento agrupado que começa em outro horário
             let ocupadoPorAgrupado = false
             if (!temAgendamento) {
-              // Verificar se algum agendamento agrupado ocupa este horário
               for (const horarioKey in agendamentos) {
                 const ags = agendamentos[horarioKey]
                 for (const ag of ags) {
@@ -579,7 +562,6 @@ function AgendaDia() {
                 {temAgendamento ? (
                   <div className="agendamentos-list">
                     {agendamentosNoHorario.map((agendamento, index) => {
-                      // Verificar se é um agendamento agrupado
                       const isAgrupado = 'isAgrupado' in agendamento && agendamento.isAgrupado
 
                       if (isAgrupado) {
@@ -596,7 +578,6 @@ function AgendaDia() {
                             className="agendamento-card agendamento-agrupado"
                             onClick={(e) => {
                               e.stopPropagation()
-                              // Usar o primeiro ID para abrir o modal
                               handleAgendamentoClick({ id: agrupado.ids[0] } as Agendamento)
                             }}
                           >

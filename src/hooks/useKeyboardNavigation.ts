@@ -1,11 +1,5 @@
 import { useEffect, useRef } from 'react'
 
-/**
- * Hook para adicionar navegação por teclado em modais
- * - ESC: fecha o modal
- * - Tab: navega entre elementos focáveis
- * - Enter: ativa botão primário quando focado
- */
 export function useKeyboardNavigation(
   isOpen: boolean,
   onClose: () => void,
@@ -31,23 +25,19 @@ export function useKeyboardNavigation(
       return
     }
 
-    // Marcar que o modal está aberto
     wasOpenRef.current = true
 
-    // Salvar elemento ativo antes de abrir o modal (apenas na primeira vez)
     if (!hasFocusedRef.current) {
       previousActiveElement.current = document.activeElement as HTMLElement
     }
 
     const handleKeyDown = (e: KeyboardEvent) => {
-      // Fechar com ESC
       if (options?.closeOnEscape !== false && e.key === 'Escape') {
         e.preventDefault()
         onClose()
         return
       }
 
-      // Trap focus dentro do modal
       if (options?.trapFocus !== false && e.key === 'Tab' && modalRef.current) {
         const focusableElements = modalRef.current.querySelectorAll<HTMLElement>(
           'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
@@ -56,13 +46,11 @@ export function useKeyboardNavigation(
         const lastElement = focusableElements[focusableElements.length - 1]
 
         if (e.shiftKey) {
-          // Shift + Tab
           if (document.activeElement === firstElement) {
             e.preventDefault()
             lastElement?.focus()
           }
         } else {
-          // Tab
           if (document.activeElement === lastElement) {
             e.preventDefault()
             firstElement?.focus()
@@ -73,11 +61,8 @@ export function useKeyboardNavigation(
 
     document.addEventListener('keydown', handleKeyDown)
 
-    // Focar primeiro elemento focável ao abrir (apenas uma vez, quando o modal abre)
-    // Não focar se já há um elemento focado dentro do modal (evita perder foco durante digitação)
     if (!hasFocusedRef.current && modalRef.current) {
       const timeoutId = setTimeout(() => {
-        // Verificar se já há um elemento focado dentro do modal
         const activeElement = document.activeElement
         const isElementInsideModal = modalRef.current?.contains(activeElement as Node)
 

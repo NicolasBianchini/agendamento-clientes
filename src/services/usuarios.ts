@@ -12,7 +12,6 @@ import {
 import { db } from '../config/firebase'
 import { getUserSession, isAdminMaster, type Usuario, type UserRole } from './auth'
 
-// Função para criar hash da senha (mesma usada no script de criação)
 async function hashPassword(password: string): Promise<string> {
   const encoder = new TextEncoder()
   const data = encoder.encode(password)
@@ -21,7 +20,6 @@ async function hashPassword(password: string): Promise<string> {
   return hashArray.map(b => b.toString(16).padStart(2, '0')).join('')
 }
 
-// Verificar se o usuário atual é admin master
 function checkAdminMaster(): void {
   const usuario = getUserSession()
   if (!isAdminMaster(usuario)) {
@@ -35,16 +33,13 @@ export interface NovoUsuario {
   senha: string
   role: UserRole
   ativo: boolean
-  dataExpiracao: string | null // Data de expiração do acesso (null = sem expiração)
+  dataExpiracao: string | null
 }
 
 export interface UsuarioCompleto extends Usuario {
-  senhaHash?: string // Apenas para uso interno, nunca retornar ao frontend
+  senhaHash?: string
 }
 
-/**
- * Lista todos os usuários (apenas admin master)
- */
 export async function listarUsuarios(): Promise<Usuario[]> {
   checkAdminMaster()
 
@@ -74,9 +69,6 @@ export async function listarUsuarios(): Promise<Usuario[]> {
   }
 }
 
-/**
- * Busca um usuário por ID (apenas admin master)
- */
 export async function buscarUsuarioPorId(userId: string): Promise<Usuario | null> {
   checkAdminMaster()
 
@@ -105,9 +97,6 @@ export async function buscarUsuarioPorId(userId: string): Promise<Usuario | null
   }
 }
 
-/**
- * Verifica se um email já existe
- */
 export async function emailExiste(email: string): Promise<boolean> {
   checkAdminMaster()
 
@@ -125,13 +114,9 @@ export async function emailExiste(email: string): Promise<boolean> {
   }
 }
 
-/**
- * Cria um novo usuário (apenas admin master)
- */
 export async function criarUsuario(dados: NovoUsuario): Promise<string> {
   checkAdminMaster()
 
-  // Validações
   if (!dados.nome || !dados.nome.trim()) {
     throw new Error('Nome é obrigatório')
   }
@@ -149,17 +134,14 @@ export async function criarUsuario(dados: NovoUsuario): Promise<string> {
     throw new Error('Senha deve ter no mínimo 6 caracteres')
   }
 
-  // Verificar se email já existe
   const existe = await emailExiste(dados.email)
   if (existe) {
     throw new Error('Este email já está cadastrado')
   }
 
   try {
-    // Criar hash da senha
     const senhaHash = await hashPassword(dados.senha)
 
-    // Dados do usuário
     const userData = {
       nome: dados.nome.trim(),
       email: dados.email.toLowerCase().trim(),
@@ -171,7 +153,6 @@ export async function criarUsuario(dados: NovoUsuario): Promise<string> {
       dataExpiracao: dados.dataExpiracao || null,
     }
 
-    // Adicionar ao Firestore
     const docRef = await addDoc(collection(db, 'usuarios'), userData)
     return docRef.id
   } catch (error: any) {
@@ -183,9 +164,6 @@ export async function criarUsuario(dados: NovoUsuario): Promise<string> {
   }
 }
 
-/**
- * Atualiza um usuário existente (apenas admin master)
- */
 export async function atualizarUsuario(
   userId: string,
   dados: Partial<Omit<NovoUsuario, 'senha'> & { senha?: string }>
@@ -212,7 +190,6 @@ export async function atualizarUsuario(
         throw new Error('Email inválido')
       }
 
-      // Verificar se email já existe (exceto para o próprio usuário)
       const emailNormalized = dados.email.toLowerCase().trim()
       const q = query(
         collection(db, 'usuarios'),
@@ -259,9 +236,6 @@ export async function atualizarUsuario(
   }
 }
 
-/**
- * Ativa ou desativa um usuário (apenas admin master)
- */
 export async function alterarStatusUsuario(userId: string, ativo: boolean): Promise<void> {
   checkAdminMaster()
 
@@ -273,7 +247,6 @@ export async function alterarStatusUsuario(userId: string, ativo: boolean): Prom
       throw new Error('Usuário não encontrado')
     }
 
-    // Não permitir desativar a si mesmo
     const usuarioAtual = getUserSession()
     if (usuarioAtual && usuarioAtual.id === userId && !ativo) {
       throw new Error('Você não pode desativar sua própria conta')
@@ -289,9 +262,6 @@ export async function alterarStatusUsuario(userId: string, ativo: boolean): Prom
   }
 }
 
-/**
- * Renova o acesso de um usuário (atualiza data de expiração) - apenas admin master
- */
 export async function renovarAcessoUsuario(userId: string, novaDataExpiracao: string | null): Promise<void> {
   checkAdminMaster()
 

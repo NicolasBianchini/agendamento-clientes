@@ -86,7 +86,6 @@ function AgendamentoDetalhesModal({
 
     setIsLoading(true)
     try {
-      // Buscar agendamento no Firestore
       const agendamentoData = await agendamentosService.getById(agendamentoId)
 
       if (!agendamentoData) {
@@ -95,18 +94,14 @@ function AgendamentoDetalhesModal({
         return
       }
 
-      // Buscar dados do cliente e serviço
       const [cliente, servico] = await Promise.all([
         agendamentoData.clienteId ? clientesService.getById(agendamentoData.clienteId) : null,
         agendamentoData.servicoId ? servicosService.getById(agendamentoData.servicoId) : null,
       ])
 
 
-      // Converter data para string YYYY-MM-DD
-      // IMPORTANTE: Usar timezone local para evitar problemas de conversão
       let agDate: string
       if (agendamentoData.data instanceof Date) {
-        // Usar métodos locais para evitar problemas de timezone
         const year = agendamentoData.data.getFullYear()
         const month = String(agendamentoData.data.getMonth() + 1).padStart(2, '0')
         const day = String(agendamentoData.data.getDate()).padStart(2, '0')
@@ -114,7 +109,6 @@ function AgendamentoDetalhesModal({
       } else if (typeof agendamentoData.data === 'string') {
         agDate = agendamentoData.data.split('T')[0]
       } else if (agendamentoData.data?.toDate && typeof agendamentoData.data.toDate === 'function') {
-        // Se for Timestamp do Firestore, usar timezone local
         const date = agendamentoData.data.toDate()
         const year = date.getFullYear()
         const month = String(date.getMonth() + 1).padStart(2, '0')
@@ -129,26 +123,11 @@ function AgendamentoDetalhesModal({
         agDate = `${year}-${month}-${day}`
       }
 
-      console.log('📅 Data do agendamento formatada:', agDate)
-      console.log('📅 Data original do agendamento:', agendamentoData.data)
-
-      // Buscar agendamentos relacionados (mesmo cliente, serviço e data)
       let agendamentosDoDia = await agendamentosService.getByDate(agDate)
-      console.log('📅 Agendamentos do dia encontrados:', agendamentosDoDia.length, agendamentosDoDia.map((a: any) => ({
-        id: a.id,
-        horario: a.horario,
-        clienteId: a.clienteId,
-        servicoId: a.servicoId,
-        data: a.data
-      })))
 
-      // Se não encontrou agendamentos, tentar buscar todos e filtrar manualmente
       if (agendamentosDoDia.length === 0) {
-        console.log('⚠️ Nenhum agendamento encontrado com getByDate, tentando buscar todos...')
         const todosAgendamentos = await agendamentosService.getAll()
-        console.log('📋 Total de agendamentos no sistema:', todosAgendamentos.length)
 
-        // Filtrar manualmente por data (usando timezone local)
         agendamentosDoDia = todosAgendamentos.filter((ag: any) => {
           let agDateStr: string
           if (ag.data instanceof Date) {
@@ -169,26 +148,16 @@ function AgendamentoDetalhesModal({
           }
           return agDateStr === agDate
         })
-
-        console.log('📅 Agendamentos do dia (busca manual):', agendamentosDoDia.length)
       }
-
-      // Filtrar agendamentos do mesmo cliente, serviço e data
-      console.log('🔍 Filtrando agendamentos - ClienteId procurado:', agendamentoData.clienteId, 'ServicoId procurado:', agendamentoData.servicoId)
 
       const agendamentosRelacionados = agendamentosDoDia.filter((ag: any) => {
         const matchCliente = ag.clienteId === agendamentoData.clienteId
         const matchServico = ag.servicoId === agendamentoData.servicoId
-        console.log(`  - Agendamento ${ag.id}: clienteId=${ag.clienteId} (${matchCliente ? '✓' : '✗'}), servicoId=${ag.servicoId} (${matchServico ? '✓' : '✗'})`)
         return matchCliente && matchServico
       })
 
-      console.log('🔗 Agendamentos relacionados (mesmo cliente/serviço):', agendamentosRelacionados.length, agendamentosRelacionados.map((a: any) => ({ id: a.id, horario: a.horario, status: a.status })))
-
-      // Incluir o agendamento atual na lista se não estiver
       const agendamentoAtualNaLista = agendamentosRelacionados.find((ag: any) => ag.id === agendamentoId)
       if (!agendamentoAtualNaLista) {
-        // Garantir que o agendamento atual tenha o id correto e horário
         agendamentosRelacionados.push({
           ...agendamentoData,
           id: agendamentoId,
@@ -196,17 +165,12 @@ function AgendamentoDetalhesModal({
         })
       }
 
-      // Ordenar todos os agendamentos relacionados por horário
       const todosAgendamentos = [...agendamentosRelacionados]
-        .filter((ag: any) => ag.horario && typeof ag.horario === 'string') // Filtrar apenas agendamentos com horário válido
+        .filter((ag: any) => ag.horario && typeof ag.horario === 'string')
         .sort((a: any, b: any) => {
           return (a.horario || '').localeCompare(b.horario || '')
         })
-      console.log('📋 Todos agendamentos ordenados:', todosAgendamentos.map((a: any) => ({ id: a.id, horario: a.horario, status: a.status })))
-      console.log('🔍 Buscando agendamento atual (ID):', agendamentoId)
 
-      // Agrupar apenas os consecutivos (diferença de 30 minutos)
-      // IMPORTANTE: Buscar todos os agendamentos consecutivos, independente do status
       const horariosRelacionados: string[] = []
       const idsRelacionados: string[] = []
 
@@ -214,15 +178,12 @@ function AgendamentoDetalhesModal({
       const indiceAtual = todosAgendamentos.findIndex((ag: any) => ag.id === agendamentoId)
 
       if (indiceAtual >= 0 && todosAgendamentos.length > 0) {
-        // Adicionar o agendamento atual primeiro
         const horarioAtual = todosAgendamentos[indiceAtual].horario || ''
         horariosRelacionados.push(horarioAtual)
         idsRelacionados.push(agendamentoId)
 
-        // Verificar agendamentos anteriores consecutivos
         for (let i = indiceAtual - 1; i >= 0; i--) {
           const anterior = todosAgendamentos[i]
-          // Comparar com o primeiro horário já adicionado (que será o mais cedo)
           const primeiroAdicionado = horariosRelacionados.length > 0
             ? todosAgendamentos.find((ag: any) => ag.id === idsRelacionados[0])
             : todosAgendamentos[indiceAtual]
@@ -237,7 +198,6 @@ function AgendamentoDetalhesModal({
           const minutosAnterior = horarioAnteriorParts[0] * 60 + horarioAnteriorParts[1]
           const minutosPrimeiro = horarioPrimeiroParts[0] * 60 + horarioPrimeiroParts[1]
 
-          // Verificar se a diferença é exatamente 30 minutos (o anterior é 30 min antes do primeiro)
           if (minutosPrimeiro - minutosAnterior === 30) {
             horariosRelacionados.unshift(anterior.horario)
             idsRelacionados.unshift(anterior.id)
@@ -246,7 +206,6 @@ function AgendamentoDetalhesModal({
           }
         }
 
-        // Verificar agendamentos posteriores consecutivos
         let ultimoIndex = indiceAtual
         for (let i = indiceAtual + 1; i < todosAgendamentos.length; i++) {
           const proximo = todosAgendamentos[i]
@@ -262,7 +221,6 @@ function AgendamentoDetalhesModal({
           const minutosProximo = horarioProximoParts[0] * 60 + horarioProximoParts[1]
           const minutosAtual = horarioAtualParts[0] * 60 + horarioAtualParts[1]
 
-          // Verificar se a diferença é exatamente 30 minutos
           if (minutosProximo - minutosAtual === 30) {
             horariosRelacionados.push(proximo.horario)
             idsRelacionados.push(proximo.id)
@@ -272,17 +230,13 @@ function AgendamentoDetalhesModal({
           }
         }
       } else {
-        // Se não encontrou na lista, adicionar apenas o atual
         horariosRelacionados.push(agendamentoData.horario || '')
         idsRelacionados.push(agendamentoId)
       }
 
-      // Ordenar horários e IDs para manter consistência
-      // Criar array de pares [horario, id] para ordenar juntos
       const pares = horariosRelacionados.map((h, i) => ({ horario: h, id: idsRelacionados[i] }))
       pares.sort((a, b) => a.horario.localeCompare(b.horario))
 
-      // Extrair horários e IDs ordenados
       horariosRelacionados.length = 0
       idsRelacionados.length = 0
       pares.forEach(p => {
@@ -290,20 +244,6 @@ function AgendamentoDetalhesModal({
         idsRelacionados.push(p.id)
       })
 
-      console.log('⏰ Horários relacionados encontrados:', horariosRelacionados)
-      console.log('🆔 IDs relacionados:', idsRelacionados)
-      console.log(`📊 Total de ${idsRelacionados.length} agendamento(s) relacionado(s) encontrado(s)`)
-
-      // Verificar se encontrou múltiplos agendamentos
-      if (idsRelacionados.length > 1) {
-        console.log('✅ MÚLTIPLOS HORÁRIOS DETECTADOS! Todos serão atualizados juntos.')
-      } else {
-        console.log('ℹ️ Apenas um agendamento encontrado para este horário.')
-      }
-
-      // Sempre incluir os IDs relacionados, mesmo que seja apenas 1
-      // Isso garante que a atualização funcione corretamente
-      // IMPORTANTE: Se encontrou múltiplos agendamentos consecutivos, incluir todos
       const idsFinais = idsRelacionados.length > 0 ? idsRelacionados : [agendamentoId]
 
       const agendamento: AgendamentoDetalhes = {
@@ -321,13 +261,6 @@ function AgendamentoDetalhesModal({
         formaPagamento: agendamentoData.formaPagamento || null,
       }
 
-      console.log('✅ Agendamento final:', {
-        id: agendamento.id,
-        ids: agendamento.ids,
-        horario: agendamento.horario,
-        status: agendamento.status,
-        cliente: agendamento.clienteNome
-      })
       setAgendamento(agendamento)
     } catch (error) {
       alert('Erro ao carregar detalhes do agendamento. Tente novamente.')
@@ -343,24 +276,17 @@ function AgendamentoDetalhesModal({
 
     setIsChangingStatus(true)
     try {
-      // Usar os IDs que já foram encontrados e armazenados no agendamento
-      // Isso é mais confiável do que tentar buscar novamente (que pode falhar por problemas de timezone)
       const idsParaAtualizar = agendamento.ids && agendamento.ids.length > 0
         ? agendamento.ids
         : [agendamento.id]
 
-      console.log(`🔄 Atualizando status para "${newStatus}" em ${idsParaAtualizar.length} agendamento(s):`, idsParaAtualizar)
-      console.log(`📋 IDs que serão atualizados (já encontrados anteriormente):`, idsParaAtualizar)
-
-      // Atualizar todos os agendamentos relacionados em paralelo
       const resultados = await Promise.all(
         idsParaAtualizar.map(async (id) => {
           try {
             await agendamentosService.update(id, { status: newStatus })
-            console.log(`✅ Agendamento ${id} atualizado para "${newStatus}"`)
             return { id, sucesso: true }
           } catch (error) {
-            console.error(`❌ Erro ao atualizar agendamento ${id}:`, error)
+            console.error(`Erro ao atualizar agendamento ${id}:`, error)
             return { id, sucesso: false, error }
           }
         })
@@ -368,8 +294,6 @@ function AgendamentoDetalhesModal({
 
       const sucessos = resultados.filter(r => r.sucesso).length
       const falhas = resultados.filter(r => !r.sucesso).length
-
-      console.log(`✅ Status atualizado: ${sucessos} sucesso(s), ${falhas} falha(s)`)
 
       if (falhas > 0) {
         alert(`Atenção: ${sucessos} agendamento(s) atualizado(s) com sucesso, mas ${falhas} falharam.`)
@@ -386,7 +310,7 @@ function AgendamentoDetalhesModal({
       }
     } catch (error) {
       alert('Erro ao alterar status. Tente novamente.')
-      console.error('❌ Erro ao atualizar status:', error)
+      console.error('Erro ao atualizar status:', error)
     } finally {
       setIsChangingStatus(false)
     }
@@ -396,7 +320,6 @@ function AgendamentoDetalhesModal({
     if (!agendamentoId || !agendamento) return
 
     try {
-      // Excluir todos os agendamentos relacionados
       const idsParaExcluir = agendamento.ids && agendamento.ids.length > 1
         ? agendamento.ids
         : [agendamentoId]
@@ -419,13 +342,9 @@ function AgendamentoDetalhesModal({
 
     setIsSavingPagamento(true)
     try {
-      // Atualizar forma de pagamento de todos os agendamentos relacionados
-      // Sempre usar os IDs relacionados se existirem, caso contrário usar apenas o ID atual
       const idsParaAtualizar = agendamento.ids && agendamento.ids.length > 0
         ? agendamento.ids
         : [agendamento.id]
-
-      console.log(`💳 Atualizando forma de pagamento para "${formaPagamento}" em ${idsParaAtualizar.length} agendamento(s):`, idsParaAtualizar)
 
       await Promise.all(
         idsParaAtualizar.map(id =>
@@ -433,14 +352,12 @@ function AgendamentoDetalhesModal({
         )
       )
 
-      console.log(`✅ Forma de pagamento atualizada com sucesso para ${idsParaAtualizar.length} agendamento(s)`)
-
       setAgendamento({ ...agendamento, formaPagamento })
       setShowPagamentoDropdown(false)
       onStatusChange?.()
     } catch (error) {
       alert('Erro ao salvar forma de pagamento. Tente novamente.')
-      console.error('❌ Erro ao atualizar forma de pagamento:', error)
+      console.error('Erro ao atualizar forma de pagamento:', error)
     } finally {
       setIsSavingPagamento(false)
     }

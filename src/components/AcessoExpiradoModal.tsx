@@ -19,29 +19,10 @@ function AcessoExpiradoModal({ isOpen, onClose, tipo = 'expirado', diasRestantes
   })
 
   const isExpirando = tipo === 'expirando'
-  // Verificar se tem WhatsApp de suporte configurado
-  // Aceita tanto string vazia quanto undefined/null
   const whatsappSuporte = config?.whatsappSuporte
-  // Verificação mais robusta: aceita qualquer valor não vazio (incluindo números sem formatação)
-  // Remove espaços e caracteres não numéricos para verificar se há conteúdo
   const whatsappLimpo = whatsappSuporte ? String(whatsappSuporte).trim().replace(/\D/g, '') : ''
   const temWhatsappSuporte = whatsappLimpo.length > 0
 
-  // Debug: verificar valores (sempre logar para debug)
-  useEffect(() => {
-    if (isOpen) {
-      console.log('[AcessoExpiradoModal] Debug WhatsApp:', {
-        loading,
-        configExists: !!config,
-        whatsappSuporte,
-        whatsappLimpo,
-        temWhatsappSuporte,
-        tipo: typeof whatsappSuporte,
-        configKeys: config ? Object.keys(config) : [],
-        configFull: config
-      })
-    }
-  }, [isOpen, loading, config, whatsappSuporte, whatsappLimpo, temWhatsappSuporte])
 
   if (!isOpen) return null
 

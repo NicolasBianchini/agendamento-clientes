@@ -1,8 +1,5 @@
 import { Timestamp } from 'firebase/firestore'
 
-/**
- * Configurações do usuário
- */
 export interface ConfiguracoesUsuario {
   id?: string
   userId: string

@@ -11,7 +11,7 @@ export interface Usuario {
   role: UserRole
   dataCriacao: string
   ultimoAcesso: string | null
-  dataExpiracao: string | null // Data de expiração do acesso (null = sem expiração)
+  dataExpiracao: string | null
 }
 
 interface LoginCredentials {
@@ -19,8 +19,6 @@ interface LoginCredentials {
   senha: string
 }
 
-// Função para criar hash da senha (mesma usada no script de criação)
-// Usa Web Crypto API para compatibilidade com navegadores
 async function hashPassword(password: string): Promise<string> {
   const encoder = new TextEncoder()
   const data = encoder.encode(password)
@@ -29,19 +27,16 @@ async function hashPassword(password: string): Promise<string> {
   return hashArray.map(b => b.toString(16).padStart(2, '0')).join('')
 }
 
-// Função para salvar usuário na sessão
 function saveUserSession(usuario: Usuario): void {
   localStorage.setItem('usuario', JSON.stringify(usuario))
   localStorage.setItem('isAuthenticated', 'true')
 }
 
-// Função para remover usuário da sessão
 export function clearUserSession(): void {
   localStorage.removeItem('usuario')
   localStorage.removeItem('isAuthenticated')
 }
 
-// Função para obter usuário da sessão
 export function getUserSession(): Usuario | null {
   const usuarioStr = localStorage.getItem('usuario')
   if (!usuarioStr) return null
@@ -53,16 +48,13 @@ export function getUserSession(): Usuario | null {
   }
 }
 
-// Função para verificar se está autenticado
 export function isAuthenticated(): boolean {
   return localStorage.getItem('isAuthenticated') === 'true' && getUserSession() !== null
 }
 
-// Função de login
 export async function login(credentials: LoginCredentials): Promise<Usuario> {
   const { email, senha } = credentials
 
-  // Validações básicas
   if (!email || !email.trim()) {
     throw new Error('Email é obrigatório')
   }
@@ -77,131 +69,68 @@ export async function login(credentials: LoginCredentials): Promise<Usuario> {
   }
 
   try {
-    // Buscar usuário no Firestore
     const emailNormalized = email.toLowerCase().trim()
-    console.log('🔐 [LOGIN] Tentando fazer login com email:', emailNormalized)
-    console.log('🔐 [LOGIN] Firebase config:', {
-      projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID ? 'configurado' : 'NÃO CONFIGURADO',
-      authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN ? 'configurado' : 'NÃO CONFIGURADO'
-    })
 
     const q = query(
       collection(db, 'usuarios'),
       where('email', '==', emailNormalized)
     )
 
-    console.log('🔐 [LOGIN] Executando query no Firestore...')
     const querySnapshot = await getDocs(q)
-    console.log('🔐 [LOGIN] Query executada. Resultados encontrados:', querySnapshot.size)
-
-    // Debug: listar todos os usuários (apenas em desenvolvimento)
-    if (querySnapshot.empty && import.meta.env.DEV) {
-      console.log('🔍 [LOGIN] Nenhum usuário encontrado. Listando todos os usuários para debug...')
-      try {
-        const allUsersQuery = query(collection(db, 'usuarios'), limit(10))
-        const allUsersSnapshot = await getDocs(allUsersQuery)
-        console.log('📋 [LOGIN] Total de usuários no banco:', allUsersSnapshot.size)
-        allUsersSnapshot.docs.forEach((doc, index) => {
-          const data = doc.data()
-          console.log(`📋 [LOGIN] Usuário ${index + 1}:`, {
-            id: doc.id,
-            email: data.email,
-            emailNormalized: data.email?.toLowerCase().trim(),
-            nome: data.nome,
-            ativo: data.ativo
-          })
-        })
-      } catch (debugError) {
-        console.error('❌ [LOGIN] Erro ao listar usuários para debug:', debugError)
-      }
-    }
 
     if (querySnapshot.empty) {
-      console.log('❌ [LOGIN] Usuário não encontrado com email:', emailNormalized)
       throw new Error('Email ou senha incorretos')
     }
 
-    // Pegar o primeiro documento (deve haver apenas um com esse email)
     const doc = querySnapshot.docs[0]
     const userData = doc.data()
-    console.log('✅ [LOGIN] Usuário encontrado:', { id: doc.id, nome: userData.nome, ativo: userData.ativo })
 
-    // Verificar se o usuário está ativo
     if (!userData.ativo) {
-      console.log('❌ [LOGIN] Usuário inativo')
       throw new Error('Usuário inativo. Entre em contato com o administrador.')
     }
 
-    // Verificar se o acesso está expirado (não bloqueia login, apenas marca)
-    // O modal será exibido após o login no Layout
-
-    // Verificar senha
     const senhaHash = await hashPassword(senhaTrimmed)
     const senhaCorreta = userData.senhaHash === senhaHash
-    console.log('🔐 [LOGIN] Verificação de senha:', {
-      senhaHashGerado: senhaHash.substring(0, 10) + '...',
-      senhaHashArmazenado: userData.senhaHash ? userData.senhaHash.substring(0, 10) + '...' : 'não encontrado',
-      senhaCorreta
-    })
 
     if (!senhaCorreta) {
-      console.log('❌ [LOGIN] Senha incorreta')
       throw new Error('Email ou senha incorretos')
     }
 
-    // Criar objeto do usuário (sem a senha)
     const usuario: Usuario = {
       id: doc.id,
       nome: userData.nome,
       email: userData.email,
       ativo: userData.ativo,
-      role: userData.role || 'cliente', // Default para 'cliente' se não tiver role
+      role: userData.role || 'cliente',
       dataCriacao: userData.dataCriacao,
       ultimoAcesso: userData.ultimoAcesso || null,
       dataExpiracao: userData.dataExpiracao || null,
     }
 
-    // Atualizar último acesso (opcional - pode ser feito em background)
-    // Por enquanto, apenas salvamos na sessão
-
-    // Salvar na sessão
     saveUserSession(usuario)
-    console.log('✅ [LOGIN] Login bem-sucedido! Usuário salvo na sessão.')
 
     return usuario
   } catch (error: any) {
-    console.error('❌ [LOGIN] Erro durante login:', {
-      message: error.message,
-      code: error.code,
-      stack: error.stack
-    })
-
-    // Se for erro de permissão do Firestore
     if (error.code === 'permission-denied') {
       throw new Error('Erro de permissão. Verifique as regras do Firestore.')
     }
 
-    // Se for erro de rede/Firebase
     if (error.code === 'unavailable' || error.code === 'deadline-exceeded') {
       throw new Error('Erro de conexão. Verifique sua internet e tente novamente.')
     }
 
-    // Se já for uma mensagem de erro nossa, apenas relançar
     if (error.message) {
       throw error
     }
 
-    // Erro genérico
     throw new Error('Erro ao fazer login. Tente novamente.')
   }
 }
 
-// Função de logout
 export function logout(): void {
   clearUserSession()
 }
 
-// Função para atualizar último acesso (opcional)
 export async function updateLastAccess(userId: string): Promise<void> {
   try {
     const { updateDoc, doc } = await import('firebase/firestore')
@@ -210,12 +139,10 @@ export async function updateLastAccess(userId: string): Promise<void> {
       ultimoAcesso: new Date().toISOString(),
     })
   } catch (error) {
-    // Falha silenciosa - não é crítico
     console.error('Erro ao atualizar último acesso:', error)
   }
 }
 
-// Função para atualizar a sessão do usuário com dados do Firestore
 export async function refreshUserSession(): Promise<Usuario | null> {
   const usuario = getUserSession()
   if (!usuario) return null
@@ -226,7 +153,6 @@ export async function refreshUserSession(): Promise<Usuario | null> {
     const docSnap = await getDoc(userRef)
 
     if (!docSnap.exists()) {
-      console.warn('Usuário não encontrado no Firestore ao atualizar sessão')
       return null
     }
 
@@ -242,13 +168,7 @@ export async function refreshUserSession(): Promise<Usuario | null> {
       dataExpiracao: userData.dataExpiracao || null,
     }
 
-    // Atualizar sessão
     saveUserSession(usuarioAtualizado)
-    console.log('✅ Sessão do usuário atualizada:', {
-      id: usuarioAtualizado.id,
-      dataExpiracao: usuarioAtualizado.dataExpiracao,
-      acessoPermanente: !usuarioAtualizado.dataExpiracao
-    })
 
     return usuarioAtualizado
   } catch (error) {
@@ -257,34 +177,27 @@ export async function refreshUserSession(): Promise<Usuario | null> {
   }
 }
 
-// Função para verificar se o usuário é admin master
 export function isAdminMaster(usuario?: Usuario | null): boolean {
   const user = usuario || getUserSession()
   return user?.role === 'admin_master'
 }
 
-// Função para verificar se o usuário é admin (master ou admin)
 export function isAdmin(usuario?: Usuario | null): boolean {
   const user = usuario || getUserSession()
   return user?.role === 'admin_master' || user?.role === 'admin'
 }
 
-// Função para verificar se o acesso do usuário está expirado
 export function isAccessExpired(usuario?: Usuario | null): boolean {
   const user = usuario || getUserSession()
 
-  // Se não tem usuário, não está expirado
   if (!user) {
     return false
   }
 
-  // Se dataExpiracao é null, undefined ou string vazia, é acesso permanente
   if (!user.dataExpiracao || user.dataExpiracao.trim() === '') {
-    console.log('🔓 [ACESSO] Acesso permanente detectado (sem dataExpiracao)')
     return false
   }
 
-  // Se for string YYYY-MM-DD, converter usando métodos locais
   let dataExpiracao: Date
   if (typeof user.dataExpiracao === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(user.dataExpiracao)) {
     const [year, month, day] = user.dataExpiracao.split('-').map(Number)
@@ -300,21 +213,17 @@ export function isAccessExpired(usuario?: Usuario | null): boolean {
   return dataExpiracao < hoje
 }
 
-// Função para verificar se o acesso está expirando em 7 dias ou menos
 export function isAccessExpiring(usuario?: Usuario | null): boolean {
   const user = usuario || getUserSession()
 
-  // Se não tem usuário, não está expirando
   if (!user) {
     return false
   }
 
-  // Se dataExpiracao é null, undefined ou string vazia, é acesso permanente - não está expirando
   if (!user.dataExpiracao || user.dataExpiracao.trim() === '') {
     return false
   }
 
-  // Se for string YYYY-MM-DD, converter usando métodos locais
   let dataExpiracao: Date
   if (typeof user.dataExpiracao === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(user.dataExpiracao)) {
     const [year, month, day] = user.dataExpiracao.split('-').map(Number)
@@ -327,27 +236,22 @@ export function isAccessExpiring(usuario?: Usuario | null): boolean {
   hoje.setHours(0, 0, 0, 0)
   dataExpiracao.setHours(0, 0, 0, 0)
 
-  // Se já expirou, não está expirando (será tratado como expirado)
   if (dataExpiracao < hoje) {
     return false
   }
 
-  // Calcular diferença em dias
   const diffTime = dataExpiracao.getTime() - hoje.getTime()
   const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
 
-  // Retornar true se faltar 7 dias ou menos para expirar (incluindo hoje, que é 0 dias)
   return diffDays <= 7 && diffDays >= 0
 }
 
-// Função para obter quantos dias faltam para expirar
 export function getDaysUntilExpiration(usuario?: Usuario | null): number | null {
   const user = usuario || getUserSession()
   if (!user || !user.dataExpiracao) {
     return null
   }
 
-  // Se for string YYYY-MM-DD, converter usando métodos locais
   let dataExpiracao: Date
   if (typeof user.dataExpiracao === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(user.dataExpiracao)) {
     const [year, month, day] = user.dataExpiracao.split('-').map(Number)
@@ -360,7 +264,6 @@ export function getDaysUntilExpiration(usuario?: Usuario | null): number | null 
   hoje.setHours(0, 0, 0, 0)
   dataExpiracao.setHours(0, 0, 0, 0)
 
-  // Calcular diferença em dias
   const diffTime = dataExpiracao.getTime() - hoje.getTime()
   const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
 

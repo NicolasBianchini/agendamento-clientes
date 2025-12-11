@@ -11,7 +11,6 @@ function Login() {
   const [isLoading, setIsLoading] = useState(false)
   const [errors, setErrors] = useState<{ email?: string; password?: string; general?: string }>({})
 
-  // Verificar se já está autenticado
   useEffect(() => {
     if (isAuthenticated()) {
       navigate('/dashboard')
@@ -44,7 +43,6 @@ function Login() {
     const value = e.target.value
     setPassword(value)
 
-    // Limpar erro de senha imediatamente se tiver 6 ou mais caracteres
     if (value.trim().length >= 6) {
       setErrors(prev => {
         if (prev.password) {
@@ -59,7 +57,6 @@ function Login() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
-    // Limpar todos os erros antes de validar
     setErrors({})
 
     // Validar formulário
@@ -89,7 +86,7 @@ function Login() {
       navigate('/dashboard')
 
     } catch (error: any) {
-      console.error('❌ Erro no login:', error)
+      console.error('Erro no login:', error)
       // Exibir mensagem de erro
       const errorMessage = error.message || 'E-mail ou senha incorretos'
       setErrors({ general: errorMessage })
