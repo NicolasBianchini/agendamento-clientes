@@ -17,10 +17,6 @@ dist-ssr
 .env.local
 .env.production
 
-# Prompts and tutorials
-Prompts/
-Tutoriais/SOLUCOES_ROTACAO_WHATSAPP.md
-
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
@@ -31,8 +27,4 @@ Tutoriais/SOLUCOES_ROTACAO_WHATSAPP.md
 *.njsproj
 *.sln
 *.sw?
-
-# Prompts and tutorials
-Prompts/
-Tutoriais/SOLUCOES_ROTACAO_WHATSAPP.md
 
