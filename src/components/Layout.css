@@ -27,6 +27,7 @@
   display: flex;
   align-items: center;
   gap: 1rem;
+  line-height: 1;
 }
 
 .menu-toggle {
@@ -40,6 +41,13 @@
   color: var(--color-accent);
   border-radius: 6px;
   transition: all 0.2s;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+.menu-toggle svg {
+  display: block;
+  vertical-align: middle;
 }
 
 .menu-toggle:hover {
@@ -52,6 +60,9 @@
   color: var(--color-primary);
   margin: 0;
   background-clip: text;
+  line-height: 1;
+  display: flex;
+  align-items: center;
 }
 
 .header-right {

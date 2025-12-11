@@ -26,6 +26,7 @@ function Usuarios() {
   const [usuarioToRenovar, setUsuarioToRenovar] = useState<Usuario | null>(null)
   const [novaDataExpiracao, setNovaDataExpiracao] = useState<string>('')
   const [semExpiracaoRenovar, setSemExpiracaoRenovar] = useState(false)
+  const [periodoRenovacao, setPeriodoRenovacao] = useState<1 | 3 | 6 | 'manual' | null>(null)
   const [toasts, setToasts] = useState<Array<{ id: string; message: string; type: ToastType }>>([])
 
   useEffect(() => {
@@ -94,11 +95,30 @@ function Usuarios() {
       const data = new Date(usuario.dataExpiracao)
       setNovaDataExpiracao(data.toISOString().split('T')[0])
       setSemExpiracaoRenovar(false)
+      setPeriodoRenovacao('manual')
     } else {
       setNovaDataExpiracao('')
       setSemExpiracaoRenovar(true)
+      setPeriodoRenovacao(null)
     }
     setShowRenovarModal(true)
+  }
+
+  const calcularDataExpiracao = (meses: 1 | 3 | 6): string => {
+    const hoje = new Date()
+    const novaData = new Date(hoje)
+    novaData.setMonth(novaData.getMonth() + meses)
+    return novaData.toISOString().split('T')[0]
+  }
+
+  const handlePeriodoSelecionado = (meses: 1 | 3 | 6) => {
+    setPeriodoRenovacao(meses)
+    setSemExpiracaoRenovar(false)
+    setNovaDataExpiracao(calcularDataExpiracao(meses))
+  }
+
+  const handleManualDateChange = () => {
+    setPeriodoRenovacao('manual')
   }
 
   const handleRenovarConfirm = async () => {
@@ -116,6 +136,8 @@ function Usuarios() {
       setUsuarioToRenovar(null)
       setNovaDataExpiracao('')
       setSemExpiracaoRenovar(false)
+      setPeriodoRenovacao(null)
+      setPeriodoRenovacao(null)
     } catch (err: any) {
       addToast(err.message || 'Erro ao renovar acesso', 'error')
     }
@@ -534,6 +556,7 @@ function Usuarios() {
                   setUsuarioToRenovar(null)
                   setNovaDataExpiracao('')
                   setSemExpiracaoRenovar(false)
+                  setPeriodoRenovacao(null)
                 }}
                 aria-label="Fechar"
               >
@@ -554,6 +577,7 @@ function Usuarios() {
                       setSemExpiracaoRenovar(e.target.checked)
                       if (e.target.checked) {
                         setNovaDataExpiracao('')
+                        setPeriodoRenovacao(null)
                       }
                     }}
                   />
@@ -561,19 +585,57 @@ function Usuarios() {
                 </label>
               </div>
               {!semExpiracaoRenovar && (
-                <div className="form-group">
-                  <label htmlFor="novaDataExpiracao" className="form-label">
-                    Nova Data de Expiração <span className="required">*</span>
-                  </label>
-                  <input
-                    type="date"
-                    id="novaDataExpiracao"
-                    className="form-input"
-                    value={novaDataExpiracao}
-                    onChange={(e) => setNovaDataExpiracao(e.target.value)}
-                    min={new Date().toISOString().split('T')[0]}
-                  />
-                </div>
+                <>
+                  <div className="form-group">
+                    <label className="form-label">
+                      Período de Renovação
+                    </label>
+                    <div className="periodo-renovacao-buttons">
+                      <button
+                        type="button"
+                        className={`periodo-btn ${periodoRenovacao === 1 ? 'active' : ''}`}
+                        onClick={() => handlePeriodoSelecionado(1)}
+                      >
+                        1 Mês
+                      </button>
+                      <button
+                        type="button"
+                        className={`periodo-btn ${periodoRenovacao === 3 ? 'active' : ''}`}
+                        onClick={() => handlePeriodoSelecionado(3)}
+                      >
+                        3 Meses
+                      </button>
+                      <button
+                        type="button"
+                        className={`periodo-btn ${periodoRenovacao === 6 ? 'active' : ''}`}
+                        onClick={() => handlePeriodoSelecionado(6)}
+                      >
+                        6 Meses
+                      </button>
+                    </div>
+                  </div>
+                  <div className="form-group">
+                    <label htmlFor="novaDataExpiracao" className="form-label">
+                      Nova Data de Expiração <span className="required">*</span>
+                    </label>
+                    <input
+                      type="date"
+                      id="novaDataExpiracao"
+                      className="form-input"
+                      value={novaDataExpiracao}
+                      onChange={(e) => {
+                        setNovaDataExpiracao(e.target.value)
+                        handleManualDateChange()
+                      }}
+                      min={new Date().toISOString().split('T')[0]}
+                    />
+                    {periodoRenovacao && periodoRenovacao !== 'manual' && (
+                      <span className="form-hint">
+                        Data calculada automaticamente para {periodoRenovacao} {periodoRenovacao === 1 ? 'mês' : 'meses'}
+                      </span>
+                    )}
+                  </div>
+                </>
               )}
             </div>
             <div className="modal-actions">
@@ -585,6 +647,7 @@ function Usuarios() {
                   setUsuarioToRenovar(null)
                   setNovaDataExpiracao('')
                   setSemExpiracaoRenovar(false)
+                  setPeriodoRenovacao(null)
                 }}
               >
                 Cancelar
