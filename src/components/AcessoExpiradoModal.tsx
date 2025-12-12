@@ -1,4 +1,3 @@
-import { useEffect } from 'react'
 import { useKeyboardNavigation } from '../hooks/useKeyboardNavigation'
 import { useConfiguracoes } from '../hooks/useConfiguracoes'
 import { gerarLinkWhatsApp } from '../utils/formatacao'
@@ -12,7 +11,7 @@ interface AcessoExpiradoModalProps {
 }
 
 function AcessoExpiradoModal({ isOpen, onClose, tipo = 'expirado', diasRestantes = null }: AcessoExpiradoModalProps) {
-  const { config, loading } = useConfiguracoes()
+  const { config } = useConfiguracoes()
   const modalRef = useKeyboardNavigation(isOpen, onClose, {
     closeOnEscape: false,
     trapFocus: true,

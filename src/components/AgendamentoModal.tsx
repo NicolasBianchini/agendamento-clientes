@@ -380,370 +380,363 @@ function AgendamentoModal({
               observacoes: observacoes.trim() || undefined,
             }
 
-            const enviado = await enviarConfirmacaoAgendamento(dadosMensagem, config)
-          }
+            await enviarConfirmacaoAgendamento(dadosMensagem, config)
           } catch (error) {
-          console.error('Erro ao enviar mensagem de confirmação:', error)
+            console.error('Erro ao enviar mensagem de confirmação:', error)
+          }
+        }
+      } else if (agendamentoId) {
+        if (horarios.length > 0) {
+          await agendamentosService.update(agendamentoId, {
+            ...baseData,
+            horario: horarios[0],
+          })
+
+          for (let i = 1; i < horarios.length; i++) {
+            await agendamentosService.create({
+              ...baseData,
+              horario: horarios[i],
+            })
+          }
         }
       }
-    }
-      }
-} else if (agendamentoId) {
-  // Em modo de edição, atualizar apenas o primeiro horário (comportamento original)
-  // Se houver múltiplos horários, criar novos agendamentos para os adicionais
-  if (horarios.length > 0) {
-    await agendamentosService.update(agendamentoId, {
-      ...baseData,
-      horario: horarios[0],
-    })
 
-    // Criar novos agendamentos para horários adicionais
-    for (let i = 1; i < horarios.length; i++) {
-      await agendamentosService.create({
-        ...baseData,
-        horario: horarios[i],
-      })
+      setShowSuccess(true)
+
+      setTimeout(() => {
+        resetForm()
+        setShowSuccess(false)
+        onSuccess?.()
+        onClose()
+      }, 1500)
+    } catch (error) {
+      alert(`Erro ao ${mode === 'create' ? 'criar' : 'atualizar'} agendamento. Tente novamente.`)
+      console.error(error)
+      setIsSubmitting(false)
     }
   }
-}
 
-setShowSuccess(true)
-
-setTimeout(() => {
-  resetForm()
-  setShowSuccess(false)
-  onSuccess?.()
-  onClose()
-}, 1500)
-
-  } catch (error) {
-  alert(`Erro ao ${mode === 'create' ? 'criar' : 'atualizar'} agendamento. Tente novamente.`)
-  console.error(error)
-  setIsSubmitting(false)
-}
-}
-
-const resetForm = () => {
-  setClienteId('')
-  setServicoId('')
-  setData('')
-  setHorarios([])
-  setObservacoes('')
-  setStatus('agendado')
-  setErrors({})
-  setIsSubmitting(false)
-  setIsLoading(false)
-  setShowSuccess(false)
-  setClienteSearch('')
-  setShowClienteDropdown(false)
-}
-
-const handleClose = () => {
-  if (!isSubmitting && !isLoading) {
-    resetForm()
-    onClose()
+  const resetForm = () => {
+    setClienteId('')
+    setServicoId('')
+    setData('')
+    setHorarios([])
+    setObservacoes('')
+    setStatus('agendado')
+    setErrors({})
+    setIsSubmitting(false)
+    setIsLoading(false)
+    setShowSuccess(false)
+    setClienteSearch('')
+    setShowClienteDropdown(false)
   }
-}
 
-const modalRef = useKeyboardNavigation(isOpen, handleClose, {
-  closeOnEscape: true,
-  trapFocus: true,
-})
+  const handleClose = () => {
+    if (!isSubmitting && !isLoading) {
+      resetForm()
+      onClose()
+    }
+  }
 
-if (!isOpen) return null
+  const modalRef = useKeyboardNavigation(isOpen, handleClose, {
+    closeOnEscape: true,
+    trapFocus: true,
+  })
 
-return (
-  <div className="modal-overlay agendamento-overlay" onClick={handleClose}>
-    <div ref={modalRef} className="modal-content agendamento-modal" onClick={(e) => e.stopPropagation()}>
-      <div className="modal-header">
-        <h2 className="modal-title">
-          {mode === 'create' ? 'Novo Agendamento' : 'Editar Agendamento'}
-        </h2>
-        <button
-          className="modal-close"
-          onClick={handleClose}
-          disabled={isSubmitting || isLoading}
-          aria-label="Fechar"
-        >
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <line x1="18" y1="6" x2="6" y2="18"></line>
-            <line x1="6" y1="6" x2="18" y2="18"></line>
-          </svg>
-        </button>
-      </div>
+  if (!isOpen) return null
 
-      {isLoading ? (
-        <div className="loading-state">
-          <div className="spinner-large"></div>
-          <p>Carregando dados...</p>
+  return (
+    <div className="modal-overlay agendamento-overlay" onClick={handleClose}>
+      <div ref={modalRef} className="modal-content agendamento-modal" onClick={(e) => e.stopPropagation()}>
+        <div className="modal-header">
+          <h2 className="modal-title">
+            {mode === 'create' ? 'Novo Agendamento' : 'Editar Agendamento'}
+          </h2>
+          <button
+            className="modal-close"
+            onClick={handleClose}
+            disabled={isSubmitting || isLoading}
+            aria-label="Fechar"
+          >
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <line x1="18" y1="6" x2="6" y2="18"></line>
+              <line x1="6" y1="6" x2="18" y2="18"></line>
+            </svg>
+          </button>
         </div>
-      ) : (
-        <>
-          {showSuccess && (
-            <div className="success-message">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <polyline points="20 6 9 17 4 12"></polyline>
-              </svg>
-              <span>Agendamento {mode === 'create' ? 'criado' : 'atualizado'} com sucesso!</span>
-            </div>
-          )}
 
-          {errors.conflito && (
-            <div className="error-message general-error">
-              {errors.conflito}
-            </div>
-          )}
-
-          <form onSubmit={handleSubmit} className="agendamento-form" noValidate>
-            <div className="form-group">
-              <label htmlFor="cliente" className="form-label">
-                Cliente <span className="required">*</span>
-              </label>
-              <div className="autocomplete-wrapper" ref={autocompleteRef}>
-                <input
-                  type="text"
-                  id="cliente"
-                  className={`form-input ${errors.cliente ? 'input-error' : ''}`}
-                  placeholder="Buscar cliente..."
-                  value={clienteSearch}
-                  onChange={(e) => {
-                    const value = e.target.value
-                    setClienteSearch(value)
-                    setShowClienteDropdown(true)
-                    if (!value) {
-                      setClienteId('')
-                    } else {
-                      // Se o texto digitado corresponder exatamente a um cliente, selecionar automaticamente
-                      const exactMatch = clientes.find(c =>
-                        c.nome.toLowerCase() === value.toLowerCase()
-                      )
-                      if (exactMatch) {
-                        setClienteId(exactMatch.id)
-                        setErrors({ ...errors, cliente: undefined })
-                      } else {
-                        // Se não houver correspondência exata, limpar o clienteId
-                        setClienteId('')
-                      }
-                    }
-                  }}
-                  onFocus={() => {
-                    if (clientes.length > 0) {
-                      setShowClienteDropdown(true)
-                    }
-                  }}
-                  disabled={isSubmitting}
-                  autoComplete="off"
-                />
-                {showClienteDropdown && clienteSearch && filteredClientes.length > 0 && (
-                  <div className="autocomplete-dropdown">
-                    {filteredClientes.map((cliente) => (
-                      <button
-                        key={cliente.id}
-                        type="button"
-                        className="dropdown-item"
-                        onClick={() => {
-                          setClienteId(cliente.id)
-                          setClienteSearch(cliente.nome)
-                          setShowClienteDropdown(false)
-                          setErrors({ ...errors, cliente: undefined })
-                        }}
-                      >
-                        {cliente.nome}
-                      </button>
-                    ))}
-                  </div>
-                )}
-                {showClienteDropdown && clienteSearch && filteredClientes.length === 0 && clientes.length > 0 && (
-                  <div className="autocomplete-dropdown">
-                    <div className="dropdown-item dropdown-item-empty">
-                      Nenhum cliente encontrado
-                    </div>
-                  </div>
-                )}
-              </div>
-              {errors.cliente && (
-                <span className="error-message">{errors.cliente}</span>
-              )}
-            </div>
-
-            <div className="form-group">
-              <label htmlFor="servico" className="form-label">
-                Serviço <span className="required">*</span>
-              </label>
-              <select
-                id="servico"
-                className={`form-select ${errors.servico ? 'input-error' : ''}`}
-                value={servicoId}
-                onChange={(e) => {
-                  setServicoId(e.target.value)
-                  setErrors({ ...errors, servico: undefined })
-                }}
-                disabled={isSubmitting}
-              >
-                <option value="">Selecione um serviço</option>
-                {servicos.map((servico) => (
-                  <option key={servico.id} value={servico.id}>
-                    {servico.nome} - {formatarMoeda(servico.valor, config)}
-                  </option>
-                ))}
-              </select>
-              {errors.servico && (
-                <span className="error-message">{errors.servico}</span>
-              )}
-            </div>
-
-            <div className="form-row">
-              <div className="form-group">
-                <label htmlFor="data" className="form-label">
-                  Data <span className="required">*</span>
-                </label>
-                <input
-                  type="date"
-                  id="data"
-                  className={`form-input ${errors.data ? 'input-error' : ''}`}
-                  value={data}
-                  onChange={(e) => {
-                    setData(e.target.value)
-                    setErrors({ ...errors, data: undefined, horario: undefined })
-                  }}
-                  disabled={isSubmitting}
-                  min={new Date().toISOString().split('T')[0]}
-                />
-                {errors.data && (
-                  <span className="error-message">{errors.data}</span>
-                )}
-              </div>
-
-              <div className="form-group">
-                <label className="form-label">
-                  Horário <span className="required">*</span>
-                  {horarios.length > 0 && (
-                    <span className="horarios-selected-count">
-                      ({horarios.length} selecionado{horarios.length > 1 ? 's' : ''})
-                    </span>
-                  )}
-                </label>
-                <div className={`horarios-selector ${errors.horario ? 'input-error' : ''}`}>
-                  <div className="horarios-grid">
-                    {horariosDisponiveis.map((horario) => {
-                      const isSelected = horarios.includes(horario)
-                      const isPast = (() => {
-                        if (!data) return false
-
-                        // Criar data selecionada sem problemas de timezone
-                        const [year, month, day] = data.split('-').map(Number)
-                        const selectedDate = new Date(year, month - 1, day)
-
-                        // Criar data de hoje sem problemas de timezone
-                        const today = new Date()
-                        const todayDate = new Date(today.getFullYear(), today.getMonth(), today.getDate())
-                        const selectedDateOnly = new Date(selectedDate.getFullYear(), selectedDate.getMonth(), selectedDate.getDate())
-
-                        const isToday = selectedDateOnly.getTime() === todayDate.getTime()
-                        if (!isToday) return false
-
-                        // Se for hoje, verificar se o horário já passou
-                        const [hours, minutes] = horario.split(':').map(Number)
-                        const horarioDateTime = new Date(selectedDate)
-                        horarioDateTime.setHours(hours, minutes, 0, 0)
-                        return horarioDateTime < new Date()
-                      })()
-
-                      return (
-                        <button
-                          key={horario}
-                          type="button"
-                          className={`horario-button ${isSelected ? 'selected' : ''} ${isPast ? 'past' : ''}`}
-                          onClick={() => !isPast && toggleHorario(horario)}
-                          disabled={isSubmitting || isPast}
-                          title={isPast ? 'Horário já passou' : isSelected ? 'Clique para remover' : 'Clique para selecionar'}
-                        >
-                          {horario}
-                        </button>
-                      )
-                    })}
-                  </div>
-                </div>
-                {errors.horario && (
-                  <span className="error-message">{errors.horario}</span>
-                )}
-                {horarios.length > 0 && (
-                  <div className="horarios-selected-list">
-                    <strong>Horários selecionados:</strong> {horarios.join(', ')}
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {mode === 'edit' && (
-              <div className="form-group">
-                <label htmlFor="status" className="form-label">
-                  Status
-                </label>
-                <select
-                  id="status"
-                  className="form-select"
-                  value={status}
-                  onChange={(e) => setStatus(e.target.value as typeof status)}
-                  disabled={isSubmitting}
-                >
-                  <option value="agendado">Agendado</option>
-                  <option value="concluido">Concluído</option>
-                  <option value="cancelado">Cancelado</option>
-                </select>
+        {isLoading ? (
+          <div className="loading-state">
+            <div className="spinner-large"></div>
+            <p>Carregando dados...</p>
+          </div>
+        ) : (
+          <>
+            {showSuccess && (
+              <div className="success-message">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <polyline points="20 6 9 17 4 12"></polyline>
+                </svg>
+                <span>Agendamento {mode === 'create' ? 'criado' : 'atualizado'} com sucesso!</span>
               </div>
             )}
 
-            <div className="form-group">
-              <label htmlFor="observacoes" className="form-label">
-                Observações
-              </label>
-              <textarea
-                id="observacoes"
-                className="form-textarea"
-                placeholder="Observações sobre o agendamento (opcional)"
-                value={observacoes}
-                onChange={(e) => setObservacoes(e.target.value)}
-                disabled={isSubmitting}
-                rows={4}
-              />
-            </div>
+            {errors.conflito && (
+              <div className="error-message general-error">
+                {errors.conflito}
+              </div>
+            )}
 
-            <div className="form-actions">
-              <button
-                type="button"
-                className="btn-cancel"
-                onClick={handleClose}
-                disabled={isSubmitting}
-              >
-                Cancelar
-              </button>
-              <button
-                type="submit"
-                className="btn-save"
-                disabled={isSubmitting}
-              >
-                {isSubmitting ? (
-                  <>
-                    <span className="spinner-small"></span>
-                    {mode === 'create' ? 'Salvando...' : 'Atualizando...'}
-                  </>
-                ) : (
-                  <>
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                      <polyline points="20 6 9 17 4 12"></polyline>
-                    </svg>
-                    {mode === 'create' ? 'Salvar' : 'Salvar Alterações'}
-                  </>
+            <form onSubmit={handleSubmit} className="agendamento-form" noValidate>
+              <div className="form-group">
+                <label htmlFor="cliente" className="form-label">
+                  Cliente <span className="required">*</span>
+                </label>
+                <div className="autocomplete-wrapper" ref={autocompleteRef}>
+                  <input
+                    type="text"
+                    id="cliente"
+                    className={`form-input ${errors.cliente ? 'input-error' : ''}`}
+                    placeholder="Buscar cliente..."
+                    value={clienteSearch}
+                    onChange={(e) => {
+                      const value = e.target.value
+                      setClienteSearch(value)
+                      setShowClienteDropdown(true)
+                      if (!value) {
+                        setClienteId('')
+                      } else {
+                        // Se o texto digitado corresponder exatamente a um cliente, selecionar automaticamente
+                        const exactMatch = clientes.find(c =>
+                          c.nome.toLowerCase() === value.toLowerCase()
+                        )
+                        if (exactMatch) {
+                          setClienteId(exactMatch.id)
+                          setErrors({ ...errors, cliente: undefined })
+                        } else {
+                          // Se não houver correspondência exata, limpar o clienteId
+                          setClienteId('')
+                        }
+                      }
+                    }}
+                    onFocus={() => {
+                      if (clientes.length > 0) {
+                        setShowClienteDropdown(true)
+                      }
+                    }}
+                    disabled={isSubmitting}
+                    autoComplete="off"
+                  />
+                  {showClienteDropdown && clienteSearch && filteredClientes.length > 0 && (
+                    <div className="autocomplete-dropdown">
+                      {filteredClientes.map((cliente) => (
+                        <button
+                          key={cliente.id}
+                          type="button"
+                          className="dropdown-item"
+                          onClick={() => {
+                            setClienteId(cliente.id)
+                            setClienteSearch(cliente.nome)
+                            setShowClienteDropdown(false)
+                            setErrors({ ...errors, cliente: undefined })
+                          }}
+                        >
+                          {cliente.nome}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                  {showClienteDropdown && clienteSearch && filteredClientes.length === 0 && clientes.length > 0 && (
+                    <div className="autocomplete-dropdown">
+                      <div className="dropdown-item dropdown-item-empty">
+                        Nenhum cliente encontrado
+                      </div>
+                    </div>
+                  )}
+                </div>
+                {errors.cliente && (
+                  <span className="error-message">{errors.cliente}</span>
                 )}
-              </button>
-            </div>
-          </form>
-        </>
-      )}
+              </div>
+
+              <div className="form-group">
+                <label htmlFor="servico" className="form-label">
+                  Serviço <span className="required">*</span>
+                </label>
+                <select
+                  id="servico"
+                  className={`form-select ${errors.servico ? 'input-error' : ''}`}
+                  value={servicoId}
+                  onChange={(e) => {
+                    setServicoId(e.target.value)
+                    setErrors({ ...errors, servico: undefined })
+                  }}
+                  disabled={isSubmitting}
+                >
+                  <option value="">Selecione um serviço</option>
+                  {servicos.map((servico) => (
+                    <option key={servico.id} value={servico.id}>
+                      {servico.nome} - {formatarMoeda(servico.valor, config)}
+                    </option>
+                  ))}
+                </select>
+                {errors.servico && (
+                  <span className="error-message">{errors.servico}</span>
+                )}
+              </div>
+
+              <div className="form-row">
+                <div className="form-group">
+                  <label htmlFor="data" className="form-label">
+                    Data <span className="required">*</span>
+                  </label>
+                  <input
+                    type="date"
+                    id="data"
+                    className={`form-input ${errors.data ? 'input-error' : ''}`}
+                    value={data}
+                    onChange={(e) => {
+                      setData(e.target.value)
+                      setErrors({ ...errors, data: undefined, horario: undefined })
+                    }}
+                    disabled={isSubmitting}
+                    min={new Date().toISOString().split('T')[0]}
+                  />
+                  {errors.data && (
+                    <span className="error-message">{errors.data}</span>
+                  )}
+                </div>
+
+                <div className="form-group">
+                  <label className="form-label">
+                    Horário <span className="required">*</span>
+                    {horarios.length > 0 && (
+                      <span className="horarios-selected-count">
+                        ({horarios.length} selecionado{horarios.length > 1 ? 's' : ''})
+                      </span>
+                    )}
+                  </label>
+                  <div className={`horarios-selector ${errors.horario ? 'input-error' : ''}`}>
+                    <div className="horarios-grid">
+                      {horariosDisponiveis.map((horario) => {
+                        const isSelected = horarios.includes(horario)
+                        const isPast = (() => {
+                          if (!data) return false
+
+                          // Criar data selecionada sem problemas de timezone
+                          const [year, month, day] = data.split('-').map(Number)
+                          const selectedDate = new Date(year, month - 1, day)
+
+                          // Criar data de hoje sem problemas de timezone
+                          const today = new Date()
+                          const todayDate = new Date(today.getFullYear(), today.getMonth(), today.getDate())
+                          const selectedDateOnly = new Date(selectedDate.getFullYear(), selectedDate.getMonth(), selectedDate.getDate())
+
+                          const isToday = selectedDateOnly.getTime() === todayDate.getTime()
+                          if (!isToday) return false
+
+                          // Se for hoje, verificar se o horário já passou
+                          const [hours, minutes] = horario.split(':').map(Number)
+                          const horarioDateTime = new Date(selectedDate)
+                          horarioDateTime.setHours(hours, minutes, 0, 0)
+                          return horarioDateTime < new Date()
+                        })()
+
+                        return (
+                          <button
+                            key={horario}
+                            type="button"
+                            className={`horario-button ${isSelected ? 'selected' : ''} ${isPast ? 'past' : ''}`}
+                            onClick={() => !isPast && toggleHorario(horario)}
+                            disabled={isSubmitting || isPast}
+                            title={isPast ? 'Horário já passou' : isSelected ? 'Clique para remover' : 'Clique para selecionar'}
+                          >
+                            {horario}
+                          </button>
+                        )
+                      })}
+                    </div>
+                  </div>
+                  {errors.horario && (
+                    <span className="error-message">{errors.horario}</span>
+                  )}
+                  {horarios.length > 0 && (
+                    <div className="horarios-selected-list">
+                      <strong>Horários selecionados:</strong> {horarios.join(', ')}
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {mode === 'edit' && (
+                <div className="form-group">
+                  <label htmlFor="status" className="form-label">
+                    Status
+                  </label>
+                  <select
+                    id="status"
+                    className="form-select"
+                    value={status}
+                    onChange={(e) => setStatus(e.target.value as typeof status)}
+                    disabled={isSubmitting}
+                  >
+                    <option value="agendado">Agendado</option>
+                    <option value="concluido">Concluído</option>
+                    <option value="cancelado">Cancelado</option>
+                  </select>
+                </div>
+              )}
+
+              <div className="form-group">
+                <label htmlFor="observacoes" className="form-label">
+                  Observações
+                </label>
+                <textarea
+                  id="observacoes"
+                  className="form-textarea"
+                  placeholder="Observações sobre o agendamento (opcional)"
+                  value={observacoes}
+                  onChange={(e) => setObservacoes(e.target.value)}
+                  disabled={isSubmitting}
+                  rows={4}
+                />
+              </div>
+
+              <div className="form-actions">
+                <button
+                  type="button"
+                  className="btn-cancel"
+                  onClick={handleClose}
+                  disabled={isSubmitting}
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  className="btn-save"
+                  disabled={isSubmitting}
+                >
+                  {isSubmitting ? (
+                    <>
+                      <span className="spinner-small"></span>
+                      {mode === 'create' ? 'Salvando...' : 'Atualizando...'}
+                    </>
+                  ) : (
+                    <>
+                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <polyline points="20 6 9 17 4 12"></polyline>
+                      </svg>
+                      {mode === 'create' ? 'Salvar' : 'Salvar Alterações'}
+                    </>
+                  )}
+                </button>
+              </div>
+            </form>
+          </>
+        )}
+      </div>
     </div>
-  </div>
-)
+  )
 }
 
 export default AgendamentoModal
