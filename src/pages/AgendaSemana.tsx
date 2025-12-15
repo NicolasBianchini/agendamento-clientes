@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from 'react'
+import { useLocation } from 'react-router-dom'
 import { agendamentosService, clientesService, servicosService } from '../services/firestore'
 import { getUserSession, isAccessExpired } from '../services/auth'
 import AgendaViewToggle from '../components/AgendaViewToggle'
@@ -20,7 +21,23 @@ interface Agendamento {
 
 function AgendaSemana() {
   const { config } = useConfiguracoes()
-  const [selectedWeek, setSelectedWeek] = useState(new Date())
+  const location = useLocation()
+
+  // Ler data da URL ou usar data atual
+  const getInitialDate = () => {
+    const searchParams = new URLSearchParams(location.search)
+    const dateParam = searchParams.get('date')
+
+    if (dateParam) {
+      // Criar data a partir do parâmetro YYYY-MM-DD
+      const [year, month, day] = dateParam.split('-').map(Number)
+      return new Date(year, month - 1, day)
+    }
+
+    return new Date()
+  }
+
+  const [selectedWeek, setSelectedWeek] = useState(getInitialDate())
   const [agendamentos, setAgendamentos] = useState<Record<string, Agendamento[]>>({})
   const [isLoading, setIsLoading] = useState(true)
   const [showAgendamentoModal, setShowAgendamentoModal] = useState(false)
@@ -36,6 +53,18 @@ function AgendaSemana() {
 
   const usuario = getUserSession()
   const acessoExpirado = isAccessExpired(usuario)
+
+  // Atualizar data quando o parâmetro da URL mudar
+  useEffect(() => {
+    const searchParams = new URLSearchParams(location.search)
+    const dateParam = searchParams.get('date')
+
+    if (dateParam) {
+      const [year, month, day] = dateParam.split('-').map(Number)
+      const newDate = new Date(year, month - 1, day)
+      setSelectedWeek(newDate)
+    }
+  }, [location.search])
 
   const addToast = (message: string, type: ToastType = 'info') => {
     const id = Date.now().toString()
@@ -251,7 +280,7 @@ function AgendaSemana() {
               onClick={handleNovoAgendamentoClick}
               title={acessoExpirado ? 'Seu acesso expirou. Você pode apenas visualizar os dados existentes.' : ''}
             >
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <line x1="12" y1="5" x2="12" y2="19"></line>
                 <line x1="5" y1="12" x2="19" y2="12"></line>
               </svg>

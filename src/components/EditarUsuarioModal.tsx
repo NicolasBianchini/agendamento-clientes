@@ -3,6 +3,7 @@ import { atualizarUsuario } from '../services/usuarios'
 import { type Usuario, type UserRole } from '../services/auth'
 import { useKeyboardNavigation } from '../hooks/useKeyboardNavigation'
 import { formatarDataParaInput } from '../utils/formatacao'
+import MaskedInput from './MaskedInput'
 import './EditarUsuarioModal.css'
 
 interface EditarUsuarioModalProps {
@@ -15,6 +16,7 @@ interface EditarUsuarioModalProps {
 function EditarUsuarioModal({ isOpen, onClose, onSuccess, usuario }: EditarUsuarioModalProps) {
   const [nome, setNome] = useState('')
   const [email, setEmail] = useState('')
+  const [cpf, setCpf] = useState('')
   const [senha, setSenha] = useState('')
   const [role, setRole] = useState<UserRole>('cliente')
   const [ativo, setAtivo] = useState(true)
@@ -23,6 +25,7 @@ function EditarUsuarioModal({ isOpen, onClose, onSuccess, usuario }: EditarUsuar
   const [errors, setErrors] = useState<{
     nome?: string
     email?: string
+    cpf?: string
     senha?: string
     general?: string
   }>({})
@@ -36,6 +39,7 @@ function EditarUsuarioModal({ isOpen, onClose, onSuccess, usuario }: EditarUsuar
     if (isOpen && usuario) {
       setNome(usuario.nome)
       setEmail(usuario.email)
+      setCpf(usuario.cpf || '')
       setRole(usuario.role)
       setAtivo(usuario.ativo)
       setSenha('')
@@ -73,6 +77,50 @@ function EditarUsuarioModal({ isOpen, onClose, onSuccess, usuario }: EditarUsuar
     return undefined
   }
 
+  const validateCPF = (value: string): string | undefined => {
+    if (!value.trim()) {
+      return 'CPF é obrigatório'
+    }
+
+    const cpfNumeros = value.replace(/\D/g, '')
+
+    if (cpfNumeros.length !== 11) {
+      return 'CPF deve ter 11 dígitos'
+    }
+
+    // Validar se não são todos dígitos iguais
+    if (/^(\d)\1{10}$/.test(cpfNumeros)) {
+      return 'CPF inválido'
+    }
+
+    // Validar dígitos verificadores
+    let soma = 0
+    let resto
+
+    for (let i = 1; i <= 9; i++) {
+      soma += parseInt(cpfNumeros.substring(i - 1, i)) * (11 - i)
+    }
+
+    resto = (soma * 10) % 11
+    if (resto === 10 || resto === 11) resto = 0
+    if (resto !== parseInt(cpfNumeros.substring(9, 10))) {
+      return 'CPF inválido'
+    }
+
+    soma = 0
+    for (let i = 1; i <= 10; i++) {
+      soma += parseInt(cpfNumeros.substring(i - 1, i)) * (12 - i)
+    }
+
+    resto = (soma * 10) % 11
+    if (resto === 10 || resto === 11) resto = 0
+    if (resto !== parseInt(cpfNumeros.substring(10, 11))) {
+      return 'CPF inválido'
+    }
+
+    return undefined
+  }
+
   const validateSenha = (value: string): string | undefined => {
     if (alterarSenha && !value) {
       return 'Senha é obrigatória'
@@ -101,6 +149,14 @@ function EditarUsuarioModal({ isOpen, onClose, onSuccess, usuario }: EditarUsuar
     }
   }
 
+  const handleCpfChange = (value: string) => {
+    setCpf(value)
+    if (errors.cpf) {
+      const error = validateCPF(value)
+      setErrors({ ...errors, cpf: error })
+    }
+  }
+
   const handleSenhaChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value
     setSenha(value)
@@ -113,16 +169,18 @@ function EditarUsuarioModal({ isOpen, onClose, onSuccess, usuario }: EditarUsuar
   const validateForm = (): boolean => {
     const nomeError = validateNome(nome)
     const emailError = validateEmail(email)
+    const cpfError = validateCPF(cpf)
     const senhaError = validateSenha(senha)
 
     const newErrors = {
       nome: nomeError,
       email: emailError,
+      cpf: cpfError,
       senha: senhaError,
     }
 
     setErrors(newErrors)
-    return !nomeError && !emailError && !senhaError
+    return !nomeError && !emailError && !cpfError && !senhaError
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -139,6 +197,7 @@ function EditarUsuarioModal({ isOpen, onClose, onSuccess, usuario }: EditarUsuar
       const updateData: any = {
         nome: nome.trim(),
         email: email.trim(),
+        cpf: cpf.replace(/\D/g, ''),
         role,
         ativo,
         dataExpiracao: semExpiracao ? null : (dataExpiracao || null),
@@ -164,6 +223,7 @@ function EditarUsuarioModal({ isOpen, onClose, onSuccess, usuario }: EditarUsuar
   const resetForm = () => {
     setNome('')
     setEmail('')
+    setCpf('')
     setSenha('')
     setRole('cliente')
     setAtivo(true)
@@ -241,6 +301,21 @@ function EditarUsuarioModal({ isOpen, onClose, onSuccess, usuario }: EditarUsuar
               autoComplete="email"
             />
             {errors.email && <span className="error-message">{errors.email}</span>}
+          </div>
+
+          <div className="form-group">
+            <label htmlFor="cpf" className="form-label">
+              CPF <span className="required">*</span>
+            </label>
+            <MaskedInput
+              type="cpf"
+              id="cpf"
+              value={cpf}
+              onChange={handleCpfChange}
+              className={`form-input ${errors.cpf ? 'input-error' : ''}`}
+              disabled={isSubmitting}
+            />
+            {errors.cpf && <span className="error-message">{errors.cpf}</span>}
           </div>
 
           <div className="form-group">

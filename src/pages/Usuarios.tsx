@@ -69,7 +69,8 @@ function Usuarios() {
       filtered = filtered.filter(
         (usuario) =>
           usuario.nome.toLowerCase().includes(term) ||
-          usuario.email.toLowerCase().includes(term)
+          usuario.email.toLowerCase().includes(term) ||
+          (usuario.cpf && usuario.cpf.includes(term.replace(/\D/g, '')))
       )
     }
 
@@ -275,7 +276,7 @@ function Usuarios() {
           onClick={handleNovoUsuario}
           title="Criar novo usuário do sistema"
         >
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
             <line x1="12" y1="5" x2="12" y2="19"></line>
             <line x1="5" y1="12" x2="19" y2="12"></line>
           </svg>
@@ -297,7 +298,7 @@ function Usuarios() {
           </svg>
           <input
             type="text"
-            placeholder="Buscar por nome ou email..."
+            placeholder="Buscar por nome, email ou CPF..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className="search-input"
@@ -318,6 +319,7 @@ function Usuarios() {
                 <tr>
                   <th>Nome</th>
                   <th>Email</th>
+                  <th>CPF</th>
                   <th>Role</th>
                   <th>Status</th>
                   <th>Data de Expiração</th>
@@ -338,6 +340,7 @@ function Usuarios() {
                       </div>
                     </td>
                     <td>{usuario.email}</td>
+                    <td>{usuario.cpf ? usuario.cpf.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4') : '-'}</td>
                     <td>
                       <span className={`role-badge ${getRoleBadgeClass(usuario.role)}`}>
                         {getRoleLabel(usuario.role)}
@@ -450,6 +453,13 @@ function Usuarios() {
                     <div className="usuario-card-field">
                       <span className="field-label">Email:</span>
                       <span className="field-value">{usuario.email}</span>
+                    </div>
+
+                    <div className="usuario-card-field">
+                      <span className="field-label">CPF:</span>
+                      <span className="field-value">
+                        {usuario.cpf ? usuario.cpf.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4') : '-'}
+                      </span>
                     </div>
 
                     <div className="usuario-card-field">

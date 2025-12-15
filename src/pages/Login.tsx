@@ -1,10 +1,12 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { login, isAuthenticated } from '../services/auth'
+import { useConfiguracoes } from '../hooks/useConfiguracoes'
 import './Login.css'
 
 function Login() {
   const navigate = useNavigate()
+  const { config } = useConfiguracoes()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
@@ -96,6 +98,32 @@ function Login() {
 
   const togglePasswordVisibility = () => {
     setShowPassword(!showPassword)
+  }
+
+  const handleForgotPassword = () => {
+    const whatsappSuporte = config?.whatsappSuporte
+
+    if (!whatsappSuporte) {
+      alert('Número de suporte não disponível. Entre em contato com o administrador.')
+      return
+    }
+
+    // Formatar número para WhatsApp (remover caracteres não numéricos)
+    const numeroFormatado = whatsappSuporte.replace(/\D/g, '')
+
+    // Criar mensagem pré-formatada com campos para preencher
+    const mensagem = `Olá! Esqueci minha senha do AgendaPro.
+
+*Meus dados:*
+Nome: [PREENCHA SEU NOME COMPLETO]
+Email cadastrado no sistema: [PREENCHA SEU EMAIL]
+CPF: [PREENCHA SEU CPF]
+
+Aguardo retorno. Obrigado!`
+
+    // Abrir WhatsApp com mensagem pré-formatada
+    const urlWhatsApp = `https://wa.me/${numeroFormatado}?text=${encodeURIComponent(mensagem)}`
+    window.open(urlWhatsApp, '_blank')
   }
 
   return (
@@ -191,6 +219,7 @@ function Login() {
             type="button"
             className="forgot-password-link"
             disabled={isLoading}
+            onClick={handleForgotPassword}
           >
             Esqueci minha senha
           </button>

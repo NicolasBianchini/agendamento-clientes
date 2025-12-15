@@ -35,12 +35,12 @@
 }
 
 .empty-state-action {
-  padding: 0.875rem 1.5rem;
+  padding: 0.625rem 0.875rem;
   background: var(--color-primary);
   color: var(--color-white);
   border: none;
-  border-radius: 8px;
-  font-size: 1rem;
+  border-radius: 6px;
+  font-size: 0.875rem;
   font-weight: 600;
   cursor: pointer;
   transition: all 0.2s;

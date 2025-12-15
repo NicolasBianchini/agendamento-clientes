@@ -128,7 +128,7 @@ function Configuracoes() {
               onClick={handleSave}
               disabled={saving}
             >
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path>
                 <polyline points="17 21 17 13 7 13 7 21"></polyline>
                 <polyline points="7 3 7 8 15 8"></polyline>
@@ -312,79 +312,6 @@ function Configuracoes() {
               </label>
               <span className="field-help">Receber lembretes antes dos agendamentos</span>
             </div>
-          </div>
-        </section>
-
-        {/* Seção: Mensagens Automáticas */}
-        <section className="config-section">
-          <h2 className="section-title">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
-            </svg>
-            Mensagens Automáticas
-          </h2>
-          <div className="config-grid">
-            <div className="config-field checkbox-field">
-              <label className="checkbox-label">
-                <input
-                  type="checkbox"
-                  checked={config.mensagensAutomaticas || false}
-                  onChange={(e) => handleChange('mensagensAutomaticas', e.target.checked)}
-                />
-                <span>Enviar Mensagens Automaticamente</span>
-              </label>
-              <span className="field-help">Enviar mensagens de confirmação automaticamente ao criar agendamentos</span>
-            </div>
-
-            {config.mensagensAutomaticas && (
-              <>
-                <div className="config-field">
-                  <label htmlFor="apiMensagensUrl">URL da API</label>
-                  <input
-                    type="text"
-                    id="apiMensagensUrl"
-                    value={config.apiMensagensUrl || ''}
-                    onChange={(e) => handleChange('apiMensagensUrl', e.target.value)}
-                    placeholder="https://api.wawp.net/v1"
-                  />
-                  <span className="field-help">
-                    URL da API. Exemplos:
-                    <br />• Wawp: https://api.wawp.net/v1 (ou deixe vazio, será detectado automaticamente)
-                    <br />• Evolution API: https://seu-servidor:8080
-                    <br />• ChatAPI: https://api.chat-api.com/instance12345
-                  </span>
-                </div>
-
-                <div className="config-field">
-                  <label htmlFor="apiMensagensToken">Token de Autenticação</label>
-                  <input
-                    type="password"
-                    id="apiMensagensToken"
-                    value={config.apiMensagensToken || ''}
-                    onChange={(e) => handleChange('apiMensagensToken', e.target.value)}
-                    placeholder="Seu token de autenticação"
-                  />
-                  <span className="field-help">Token de autenticação da API (Bearer token)</span>
-                </div>
-
-                <div className="config-field">
-                  <label htmlFor="apiMensagensInstancia">ID da Instância (opcional)</label>
-                  <input
-                    type="text"
-                    id="apiMensagensInstancia"
-                    value={config.apiMensagensInstancia || ''}
-                    onChange={(e) => handleChange('apiMensagensInstancia', e.target.value)}
-                    placeholder="Nome da instância (apenas para Evolution API)"
-                  />
-                  <span className="field-help">
-                    ID ou nome da instância.
-                    <br />• Wawp: Cole seu Instance ID aqui (encontre no dashboard do Wawp)
-                    <br />• Evolution API: Nome da instância criada
-                    <br />• Outros serviços: Geralmente deixe vazio
-                  </span>
-                </div>
-              </>
-            )}
           </div>
         </section>
 

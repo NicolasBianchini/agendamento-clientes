@@ -2,7 +2,6 @@ import { useState, useEffect, useRef, useMemo } from 'react'
 import { clientesService, servicosService, agendamentosService, toFirestoreDate } from '../services/firestore'
 import { useConfiguracoes } from '../hooks/useConfiguracoes'
 import { formatarMoeda } from '../utils/formatacao'
-import { enviarConfirmacaoAgendamento } from '../services/mensagens'
 import { useKeyboardNavigation } from '../hooks/useKeyboardNavigation'
 import './AgendamentoModal.css'
 
@@ -354,36 +353,12 @@ function AgendamentoModal({
       }
 
       if (mode === 'create') {
-        // Buscar dados do cliente e serviço para enviar mensagem
-        const [cliente, servico] = await Promise.all([
-          clienteId ? clientesService.getById(clienteId) : null,
-          servicoId ? servicosService.getById(servicoId) : null,
-        ])
-
         // Criar um agendamento para cada horário selecionado
         for (const horario of horarios) {
           await agendamentosService.create({
             ...baseData,
             horario,
           })
-        }
-
-        if (cliente?.telefone && servico) {
-          try {
-            const dadosMensagem = {
-              clienteNome: cliente.nome,
-              clienteTelefone: cliente.telefone,
-              servicoNome: servico.nome,
-              servicoValor: servico.valor,
-              data: data,
-              horario: horarios.length === 1 ? horarios[0] : horarios,
-              observacoes: observacoes.trim() || undefined,
-            }
-
-            await enviarConfirmacaoAgendamento(dadosMensagem, config)
-          } catch (error) {
-            console.error('Erro ao enviar mensagem de confirmação:', error)
-          }
         }
       } else if (agendamentoId) {
         if (horarios.length > 0) {

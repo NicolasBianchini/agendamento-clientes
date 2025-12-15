@@ -352,9 +352,6 @@ export const configuracoesService = {
           id: doc.id,
           ...data,
           whatsappSuporte: data.whatsappSuporte ?? '',
-          apiMensagensUrl: data.apiMensagensUrl ?? '',
-          apiMensagensToken: data.apiMensagensToken ?? '',
-          apiMensagensInstancia: data.apiMensagensInstancia ?? '',
         } as ConfiguracoesUsuario
       }
       return null
@@ -381,9 +378,6 @@ export const configuracoesService = {
           ...config,
           userId,
           whatsappSuporte: config.whatsappSuporte ?? '',
-          apiMensagensUrl: config.apiMensagensUrl ?? '',
-          apiMensagensToken: config.apiMensagensToken ?? '',
-          apiMensagensInstancia: config.apiMensagensInstancia ?? '',
           dataAtualizacao: Timestamp.now(),
         }
         await updateDoc(docRef, updateData)
@@ -393,9 +387,6 @@ export const configuracoesService = {
           ...config,
           userId,
           whatsappSuporte: config.whatsappSuporte ?? '',
-          apiMensagensUrl: config.apiMensagensUrl ?? '',
-          apiMensagensToken: config.apiMensagensToken ?? '',
-          apiMensagensInstancia: config.apiMensagensInstancia ?? '',
           dataCriacao: Timestamp.now(),
           dataAtualizacao: Timestamp.now(),
         }
@@ -461,10 +452,6 @@ export const configuracoesService = {
         moeda: 'BRL',
         formatoData: 'DD/MM/YYYY',
         formatoHora: '24h',
-        mensagensAutomaticas: false,
-        apiMensagensUrl: '',
-        apiMensagensToken: '',
-        apiMensagensInstancia: '',
         whatsappSuporte: whatsappSuporteAdmin,
       }
     } catch (error) {
@@ -483,10 +470,6 @@ export const configuracoesService = {
         moeda: 'BRL',
         formatoData: 'DD/MM/YYYY',
         formatoHora: '24h',
-        mensagensAutomaticas: false,
-        apiMensagensUrl: '',
-        apiMensagensToken: '',
-        apiMensagensInstancia: '',
         whatsappSuporte: whatsappSuporteAdmin,
       }
     }

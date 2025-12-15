@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import './MaskedInput.css'
 
-export type MaskType = 'phone' | 'currency' | 'date' | 'time'
+export type MaskType = 'phone' | 'currency' | 'date' | 'time' | 'cpf'
 
 interface MaskedInputProps {
   type: MaskType
@@ -43,6 +43,8 @@ function MaskedInput({
         return formatDate(val)
       case 'time':
         return formatTime(val)
+      case 'cpf':
+        return formatCPF(val)
       default:
         return val
     }
@@ -85,6 +87,19 @@ function MaskedInput({
     }
   }
 
+  const formatCPF = (val: string): string => {
+    const numbers = val.replace(/\D/g, '')
+    if (numbers.length <= 3) {
+      return numbers
+    } else if (numbers.length <= 6) {
+      return `${numbers.slice(0, 3)}.${numbers.slice(3)}`
+    } else if (numbers.length <= 9) {
+      return `${numbers.slice(0, 3)}.${numbers.slice(3, 6)}.${numbers.slice(6)}`
+    } else {
+      return `${numbers.slice(0, 3)}.${numbers.slice(3, 6)}.${numbers.slice(6, 9)}-${numbers.slice(9, 11)}`
+    }
+  }
+
   const unformatValue = (val: string): string => {
     return val.replace(/\D/g, '')
   }
@@ -92,7 +107,7 @@ function MaskedInput({
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const inputValue = e.target.value
     const unformatted = unformatValue(inputValue)
-    
+
     let maxLength = 0
     switch (type) {
       case 'phone':
@@ -106,6 +121,9 @@ function MaskedInput({
         break
       case 'time':
         maxLength = 4
+        break
+      case 'cpf':
+        maxLength = 11
         break
     }
 
@@ -130,7 +148,7 @@ function MaskedInput({
 
   const getPlaceholder = (): string => {
     if (placeholder) return placeholder
-    
+
     switch (type) {
       case 'phone':
         return '(00) 00000-0000'
@@ -140,6 +158,8 @@ function MaskedInput({
         return 'DD/MM/AAAA'
       case 'time':
         return 'HH:MM'
+      case 'cpf':
+        return '000.000.000-00'
       default:
         return ''
     }

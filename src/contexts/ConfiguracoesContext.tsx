@@ -36,7 +36,6 @@ export function ConfiguracoesProvider({ children }: { children: ReactNode }) {
           moeda: 'BRL',
           formatoData: 'DD/MM/YYYY',
           formatoHora: '24h',
-          mensagensAutomaticas: false,
           whatsappSuporte: whatsappSuporteAdmin,
         })
       } catch (error) {
@@ -56,7 +55,6 @@ export function ConfiguracoesProvider({ children }: { children: ReactNode }) {
           moeda: 'BRL',
           formatoData: 'DD/MM/YYYY',
           formatoHora: '24h',
-          mensagensAutomaticas: false,
           whatsappSuporte: '',
         })
       } finally {
@@ -87,7 +85,6 @@ export function ConfiguracoesProvider({ children }: { children: ReactNode }) {
         moeda: 'BRL',
         formatoData: 'DD/MM/YYYY',
         formatoHora: '24h',
-        mensagensAutomaticas: false,
         whatsappSuporte: '',
       })
     } finally {
@@ -103,16 +100,18 @@ export function ConfiguracoesProvider({ children }: { children: ReactNode }) {
       loadConfiguracoes()
     }
 
-    // Escutar mudanças de autenticação
+    // Escutar mudanças de autenticação (login/logout)
     const handleAuthChange = () => {
       loadConfiguracoes()
     }
 
     window.addEventListener('configuracoes-updated', handleConfigUpdate)
-    window.addEventListener('storage', handleAuthChange) // Escutar mudanças no localStorage
+    window.addEventListener('auth-changed', handleAuthChange) // Evento customizado de autenticação
+    window.addEventListener('storage', handleAuthChange) // Escutar mudanças de outras abas
 
     return () => {
       window.removeEventListener('configuracoes-updated', handleConfigUpdate)
+      window.removeEventListener('auth-changed', handleAuthChange)
       window.removeEventListener('storage', handleAuthChange)
     }
   }, [])

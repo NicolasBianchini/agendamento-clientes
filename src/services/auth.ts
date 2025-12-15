@@ -7,6 +7,7 @@ export interface Usuario {
   id: string
   nome: string
   email: string
+  cpf?: string
   ativo: boolean
   role: UserRole
   dataCriacao: string
@@ -30,11 +31,17 @@ async function hashPassword(password: string): Promise<string> {
 function saveUserSession(usuario: Usuario): void {
   localStorage.setItem('usuario', JSON.stringify(usuario))
   localStorage.setItem('isAuthenticated', 'true')
+
+  // Disparar evento customizado para notificar mudanças de autenticação
+  window.dispatchEvent(new Event('auth-changed'))
 }
 
 export function clearUserSession(): void {
   localStorage.removeItem('usuario')
   localStorage.removeItem('isAuthenticated')
+
+  // Disparar evento customizado para notificar mudanças de autenticação
+  window.dispatchEvent(new Event('auth-changed'))
 }
 
 export function getUserSession(): Usuario | null {
@@ -100,6 +107,7 @@ export async function login(credentials: LoginCredentials): Promise<Usuario> {
       id: doc.id,
       nome: userData.nome,
       email: userData.email,
+      cpf: userData.cpf || '',
       ativo: userData.ativo,
       role: userData.role || 'cliente',
       dataCriacao: userData.dataCriacao,
@@ -161,6 +169,7 @@ export async function refreshUserSession(): Promise<Usuario | null> {
       id: docSnap.id,
       nome: userData.nome,
       email: userData.email,
+      cpf: userData.cpf || '',
       ativo: userData.ativo,
       role: userData.role || 'cliente',
       dataCriacao: userData.dataCriacao,

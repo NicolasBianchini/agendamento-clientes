@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { criarUsuario } from '../services/usuarios'
 import { type UserRole } from '../services/auth'
 import { useKeyboardNavigation } from '../hooks/useKeyboardNavigation'
+import MaskedInput from './MaskedInput'
 import './NovoUsuarioModal.css'
 
 interface NovoUsuarioModalProps {
@@ -13,6 +14,7 @@ interface NovoUsuarioModalProps {
 function NovoUsuarioModal({ isOpen, onClose, onSuccess }: NovoUsuarioModalProps) {
   const [nome, setNome] = useState('')
   const [email, setEmail] = useState('')
+  const [cpf, setCpf] = useState('')
   const [senha, setSenha] = useState('')
   const [confirmarSenha, setConfirmarSenha] = useState('')
   const [role, setRole] = useState<UserRole>('cliente')
@@ -22,6 +24,7 @@ function NovoUsuarioModal({ isOpen, onClose, onSuccess }: NovoUsuarioModalProps)
   const [errors, setErrors] = useState<{
     nome?: string
     email?: string
+    cpf?: string
     senha?: string
     confirmarSenha?: string
     general?: string
@@ -50,6 +53,50 @@ function NovoUsuarioModal({ isOpen, onClose, onSuccess }: NovoUsuarioModalProps)
     if (!emailRegex.test(value)) {
       return 'Email inválido'
     }
+    return undefined
+  }
+
+  const validateCPF = (value: string): string | undefined => {
+    if (!value.trim()) {
+      return 'CPF é obrigatório'
+    }
+
+    const cpfNumeros = value.replace(/\D/g, '')
+
+    if (cpfNumeros.length !== 11) {
+      return 'CPF deve ter 11 dígitos'
+    }
+
+    // Validar se não são todos dígitos iguais
+    if (/^(\d)\1{10}$/.test(cpfNumeros)) {
+      return 'CPF inválido'
+    }
+
+    // Validar dígitos verificadores
+    let soma = 0
+    let resto
+
+    for (let i = 1; i <= 9; i++) {
+      soma += parseInt(cpfNumeros.substring(i - 1, i)) * (11 - i)
+    }
+
+    resto = (soma * 10) % 11
+    if (resto === 10 || resto === 11) resto = 0
+    if (resto !== parseInt(cpfNumeros.substring(9, 10))) {
+      return 'CPF inválido'
+    }
+
+    soma = 0
+    for (let i = 1; i <= 10; i++) {
+      soma += parseInt(cpfNumeros.substring(i - 1, i)) * (12 - i)
+    }
+
+    resto = (soma * 10) % 11
+    if (resto === 10 || resto === 11) resto = 0
+    if (resto !== parseInt(cpfNumeros.substring(10, 11))) {
+      return 'CPF inválido'
+    }
+
     return undefined
   }
 
@@ -91,6 +138,14 @@ function NovoUsuarioModal({ isOpen, onClose, onSuccess }: NovoUsuarioModalProps)
     }
   }
 
+  const handleCpfChange = (value: string) => {
+    setCpf(value)
+    if (errors.cpf) {
+      const error = validateCPF(value)
+      setErrors({ ...errors, cpf: error })
+    }
+  }
+
   const handleSenhaChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value
     setSenha(value)
@@ -117,6 +172,7 @@ function NovoUsuarioModal({ isOpen, onClose, onSuccess }: NovoUsuarioModalProps)
   const validateForm = (): boolean => {
     const nomeError = validateNome(nome)
     const emailError = validateEmail(email)
+    const cpfError = validateCPF(cpf)
     const senhaError = validateSenha(senha)
     const confirmarSenhaError = validateConfirmarSenha(confirmarSenha, senha)
 
@@ -128,12 +184,13 @@ function NovoUsuarioModal({ isOpen, onClose, onSuccess }: NovoUsuarioModalProps)
     const newErrors = {
       nome: nomeError,
       email: emailError,
+      cpf: cpfError,
       senha: senhaError,
       confirmarSenha: confirmarSenhaError,
     }
 
     setErrors(newErrors)
-    return !nomeError && !emailError && !senhaError && !confirmarSenhaError
+    return !nomeError && !emailError && !cpfError && !senhaError && !confirmarSenhaError
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -150,6 +207,7 @@ function NovoUsuarioModal({ isOpen, onClose, onSuccess }: NovoUsuarioModalProps)
       await criarUsuario({
         nome: nome.trim(),
         email: email.trim(),
+        cpf: cpf.replace(/\D/g, ''),
         senha,
         role,
         ativo,
@@ -170,6 +228,7 @@ function NovoUsuarioModal({ isOpen, onClose, onSuccess }: NovoUsuarioModalProps)
   const resetForm = () => {
     setNome('')
     setEmail('')
+    setCpf('')
     setSenha('')
     setConfirmarSenha('')
     setRole('cliente')
@@ -250,6 +309,21 @@ function NovoUsuarioModal({ isOpen, onClose, onSuccess }: NovoUsuarioModalProps)
               autoComplete="email"
             />
             {errors.email && <span className="error-message">{errors.email}</span>}
+          </div>
+
+          <div className="form-group">
+            <label htmlFor="cpf" className="form-label">
+              CPF <span className="required">*</span>
+            </label>
+            <MaskedInput
+              type="cpf"
+              id="cpf"
+              value={cpf}
+              onChange={handleCpfChange}
+              className={`form-input ${errors.cpf ? 'input-error' : ''}`}
+              disabled={isSubmitting}
+            />
+            {errors.cpf && <span className="error-message">{errors.cpf}</span>}
           </div>
 
           <div className="form-group">

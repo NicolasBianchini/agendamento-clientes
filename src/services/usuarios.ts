@@ -30,6 +30,7 @@ function checkAdminMaster(): void {
 export interface NovoUsuario {
   nome: string
   email: string
+  cpf: string
   senha: string
   role: UserRole
   ativo: boolean
@@ -56,6 +57,7 @@ export async function listarUsuarios(): Promise<Usuario[]> {
         id: doc.id,
         nome: data.nome,
         email: data.email,
+        cpf: data.cpf || '',
         ativo: data.ativo,
         role: data.role || 'cliente',
         dataCriacao: data.dataCriacao,
@@ -85,6 +87,7 @@ export async function buscarUsuarioPorId(userId: string): Promise<Usuario | null
       id: docSnap.id,
       nome: data.nome,
       email: data.email,
+      cpf: data.cpf || '',
       ativo: data.ativo,
       role: data.role || 'cliente',
       dataCriacao: data.dataCriacao,
@@ -130,6 +133,15 @@ export async function criarUsuario(dados: NovoUsuario): Promise<string> {
     throw new Error('Email inválido')
   }
 
+  if (!dados.cpf || !dados.cpf.trim()) {
+    throw new Error('CPF é obrigatório')
+  }
+
+  const cpfNumeros = dados.cpf.replace(/\D/g, '')
+  if (cpfNumeros.length !== 11) {
+    throw new Error('CPF inválido')
+  }
+
   if (!dados.senha || dados.senha.length < 6) {
     throw new Error('Senha deve ter no mínimo 6 caracteres')
   }
@@ -145,6 +157,7 @@ export async function criarUsuario(dados: NovoUsuario): Promise<string> {
     const userData = {
       nome: dados.nome.trim(),
       email: dados.email.toLowerCase().trim(),
+      cpf: dados.cpf.replace(/\D/g, ''),
       senhaHash: senhaHash,
       role: dados.role || 'cliente',
       ativo: dados.ativo !== undefined ? dados.ativo : true,
@@ -166,7 +179,7 @@ export async function criarUsuario(dados: NovoUsuario): Promise<string> {
 
 export async function atualizarUsuario(
   userId: string,
-  dados: Partial<Omit<NovoUsuario, 'senha'> & { senha?: string }>
+  dados: Partial<Omit<NovoUsuario, 'senha'> & { senha?: string; cpf?: string }>
 ): Promise<void> {
   checkAdminMaster()
 
@@ -182,6 +195,14 @@ export async function atualizarUsuario(
 
     if (dados.nome !== undefined) {
       updateData.nome = dados.nome.trim()
+    }
+
+    if (dados.cpf !== undefined) {
+      const cpfNumeros = dados.cpf.replace(/\D/g, '')
+      if (cpfNumeros.length !== 11) {
+        throw new Error('CPF inválido')
+      }
+      updateData.cpf = cpfNumeros
     }
 
     if (dados.email !== undefined) {
