@@ -43,6 +43,26 @@ function AgendaMes() {
     loadAgendamentos()
   }, [selectedMonth])
 
+  const normalizeDateKey = (value: any): string | null => {
+    if (!value) {
+      return null
+    }
+
+    if (typeof value === 'string') {
+      return value.split('T')[0]
+    }
+
+    if (value instanceof Date) {
+      return value.toISOString().split('T')[0]
+    }
+
+    if (typeof value?.toDate === 'function') {
+      return value.toDate().toISOString().split('T')[0]
+    }
+
+    return null
+  }
+
   const loadAgendamentos = async () => {
     setIsLoading(true)
     try {
@@ -62,7 +82,10 @@ function AgendaMes() {
       const counts: Record<string, number> = {}
 
       agendamentosMes.forEach((ag: any) => {
-        const agDate = ag.data instanceof Date ? ag.data.toISOString().split('T')[0] : ag.data
+        const agDate = normalizeDateKey(ag.data)
+        if (!agDate) {
+          return
+        }
         counts[agDate] = (counts[agDate] || 0) + 1
       })
 
@@ -297,4 +320,3 @@ function AgendaMes() {
 }
 
 export default AgendaMes
-

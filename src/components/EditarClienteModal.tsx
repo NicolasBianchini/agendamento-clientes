@@ -7,6 +7,7 @@ interface ClienteData {
   id: string
   nome: string
   telefone: string
+  email: string
   observacoes?: string
 }
 
@@ -21,8 +22,9 @@ interface EditarClienteModalProps {
 function EditarClienteModal({ isOpen, clienteId, clienteData, onClose, onSuccess }: EditarClienteModalProps) {
   const [nome, setNome] = useState('')
   const [telefone, setTelefone] = useState('')
+  const [email, setEmail] = useState('')
   const [observacoes, setObservacoes] = useState('')
-  const [errors, setErrors] = useState<{ nome?: string; telefone?: string }>({})
+  const [errors, setErrors] = useState<{ nome?: string; telefone?: string; email?: string }>({})
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   const [showSuccess, setShowSuccess] = useState(false)
@@ -33,6 +35,7 @@ function EditarClienteModal({ isOpen, clienteId, clienteData, onClose, onSuccess
         // Se os dados já foram passados como prop, usar diretamente
         setNome(clienteData.nome)
         setTelefone(clienteData.telefone)
+        setEmail(clienteData.email)
         setObservacoes(clienteData.observacoes || '')
         setErrors({})
         setIsLoading(false)
@@ -64,6 +67,7 @@ function EditarClienteModal({ isOpen, clienteId, clienteData, onClose, onSuccess
       
       setNome(cliente.nome)
       setTelefone(telefoneFormatado)
+      setEmail(cliente.email || '')
       setObservacoes(cliente.observacoes || '')
       setErrors({})
     } catch (error) {
@@ -120,6 +124,17 @@ function EditarClienteModal({ isOpen, clienteId, clienteData, onClose, onSuccess
     return undefined
   }
 
+  const validateEmail = (value: string): string | undefined => {
+    if (!value.trim()) {
+      return 'Email é obrigatório'
+    }
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+    if (!emailRegex.test(value)) {
+      return 'Email inválido'
+    }
+    return undefined
+  }
+
   const handleNomeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value
     setNome(value)
@@ -143,6 +158,15 @@ function EditarClienteModal({ isOpen, clienteId, clienteData, onClose, onSuccess
     }
   }
 
+  const handleEmailChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value
+    setEmail(value)
+    if (errors.email || value.trim()) {
+      const error = validateEmail(value)
+      setErrors({ ...errors, email: error })
+    }
+  }
+
   const handleObservacoesChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     setObservacoes(e.target.value)
   }
@@ -150,14 +174,16 @@ function EditarClienteModal({ isOpen, clienteId, clienteData, onClose, onSuccess
   const validateForm = (): boolean => {
     const nomeError = validateNome(nome)
     const telefoneError = validateTelefone(telefone)
+    const emailError = validateEmail(email)
     
     const newErrors = {
       nome: nomeError,
       telefone: telefoneError,
+      email: emailError,
     }
     
     setErrors(newErrors)
-    return !nomeError && !telefoneError
+    return !nomeError && !telefoneError && !emailError
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -177,6 +203,7 @@ function EditarClienteModal({ isOpen, clienteId, clienteData, onClose, onSuccess
       await clientesService.update(clienteId, {
         nome: nome.trim(),
         telefone: telefoneNumbers,
+        email: email.trim().toLowerCase(),
         observacoes: observacoes.trim() || null,
       })
       
@@ -201,6 +228,7 @@ function EditarClienteModal({ isOpen, clienteId, clienteData, onClose, onSuccess
   const resetForm = () => {
     setNome('')
     setTelefone('')
+    setEmail('')
     setObservacoes('')
     setErrors({})
     setIsSubmitting(false)
@@ -215,7 +243,13 @@ function EditarClienteModal({ isOpen, clienteId, clienteData, onClose, onSuccess
     }
   }
 
-  const isFormValid = nome.trim() && telefone.replace(/\D/g, '').length >= 10 && !errors.nome && !errors.telefone
+  const isFormValid =
+    nome.trim() &&
+    telefone.replace(/\D/g, '').length >= 10 &&
+    email.trim() &&
+    !errors.nome &&
+    !errors.telefone &&
+    !errors.email
 
   const modalRef = useKeyboardNavigation(isOpen, handleClose, {
     closeOnEscape: true,
@@ -300,6 +334,25 @@ function EditarClienteModal({ isOpen, clienteId, clienteData, onClose, onSuccess
               </div>
 
               <div className="form-group">
+                <label htmlFor="email-edit" className="form-label">
+                  Email <span className="required">*</span>
+                </label>
+                <input
+                  type="email"
+                  id="email-edit"
+                  className={`form-input ${errors.email ? 'input-error' : ''}`}
+                  placeholder="cliente@email.com"
+                  value={email}
+                  onChange={handleEmailChange}
+                  disabled={isSubmitting}
+                  autoComplete="email"
+                />
+                {errors.email && (
+                  <span className="error-message">{errors.email}</span>
+                )}
+              </div>
+
+              <div className="form-group">
                 <label htmlFor="observacoes-edit" className="form-label">
                   Observações
                 </label>
@@ -353,4 +406,3 @@ function EditarClienteModal({ isOpen, clienteId, clienteData, onClose, onSuccess
 }
 
 export default EditarClienteModal
-

@@ -1,6 +1,7 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { criarUsuario } from '../services/usuarios'
-import { type UserRole } from '../services/auth'
+import { getUserSession, isProprietario, type UserRole } from '../services/auth'
+import { estabelecimentosService } from '../services/firestore'
 import { useKeyboardNavigation } from '../hooks/useKeyboardNavigation'
 import MaskedInput from './MaskedInput'
 import './NovoUsuarioModal.css'
@@ -17,8 +18,10 @@ function NovoUsuarioModal({ isOpen, onClose, onSuccess }: NovoUsuarioModalProps)
   const [cpf, setCpf] = useState('')
   const [senha, setSenha] = useState('')
   const [confirmarSenha, setConfirmarSenha] = useState('')
-  const [role, setRole] = useState<UserRole>('cliente')
+  const [role, setRole] = useState<UserRole>('profissional')
   const [ativo, setAtivo] = useState(true)
+  const [estabelecimentoId, setEstabelecimentoId] = useState('')
+  const [estabelecimentos, setEstabelecimentos] = useState<Array<{ id: string; nome: string }>>([])
   const [dataExpiracao, setDataExpiracao] = useState<string>('')
   const [semExpiracao, setSemExpiracao] = useState(false)
   const [errors, setErrors] = useState<{
@@ -34,6 +37,38 @@ function NovoUsuarioModal({ isOpen, onClose, onSuccess }: NovoUsuarioModalProps)
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
 
   const modalRef = useKeyboardNavigation(isOpen, onClose)
+  const usuarioAtual = getUserSession()
+  const usuarioProprietario = isProprietario(usuarioAtual)
+  const roleOptions: Array<{ value: UserRole; label: string }> = usuarioProprietario
+    ? [
+        { value: 'profissional', label: 'Profissional' },
+      ]
+    : [
+        { value: 'profissional', label: 'Profissional' },
+        { value: 'cliente', label: 'Cliente' },
+        { value: 'proprietario', label: 'Proprietário' },
+        { value: 'admin', label: 'Admin' },
+        { value: 'admin_master', label: 'Admin Master' },
+      ]
+
+  useEffect(() => {
+    if (isOpen) {
+      loadEstabelecimentos()
+      if (usuarioProprietario) {
+        setRole('profissional')
+        setEstabelecimentoId(usuarioAtual?.estabelecimentoId || '')
+      }
+    }
+  }, [isOpen, usuarioProprietario, usuarioAtual?.estabelecimentoId])
+
+  const loadEstabelecimentos = async () => {
+    try {
+      const data = await estabelecimentosService.getAll()
+      setEstabelecimentos((data as Array<{ id: string; nome: string }>).sort((a, b) => a.nome.localeCompare(b.nome)))
+    } catch (error) {
+      console.error('Erro ao carregar estabelecimentos no modal de usuário:', error)
+    }
+  }
 
   const validateNome = (value: string): string | undefined => {
     if (!value.trim()) {
@@ -211,6 +246,7 @@ function NovoUsuarioModal({ isOpen, onClose, onSuccess }: NovoUsuarioModalProps)
         senha,
         role,
         ativo,
+        estabelecimentoId: estabelecimentoId.trim() || null,
         dataExpiracao: semExpiracao ? null : (dataExpiracao || null),
       })
 
@@ -231,8 +267,9 @@ function NovoUsuarioModal({ isOpen, onClose, onSuccess }: NovoUsuarioModalProps)
     setCpf('')
     setSenha('')
     setConfirmarSenha('')
-    setRole('cliente')
+    setRole('profissional')
     setAtivo(true)
+    setEstabelecimentoId(usuarioProprietario ? usuarioAtual?.estabelecimentoId || '' : '')
     setDataExpiracao('')
     setSemExpiracao(false)
     setErrors({})
@@ -411,14 +448,41 @@ function NovoUsuarioModal({ isOpen, onClose, onSuccess }: NovoUsuarioModalProps)
               className="form-input"
               value={role}
               onChange={(e) => setRole(e.target.value as UserRole)}
-              disabled={isSubmitting}
+              disabled={isSubmitting || usuarioProprietario}
             >
-              <option value="cliente">Profissional (Barbeiro, Manicure, etc.)</option>
-              <option value="admin">Admin</option>
-              <option value="admin_master">Admin Master</option>
+              {roleOptions.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
             </select>
             <small className="form-hint">
-              Profissional: Acesso para gerenciar seus próprios agendamentos e clientes
+              {usuarioProprietario
+                ? 'Como proprietário, você pode criar apenas profissionais vinculados ao seu estabelecimento.'
+                : 'Profissional: acesso operacional. Cliente: acesso para autoagendamento. Proprietário: visão do negócio.'}
+            </small>
+          </div>
+
+          <div className="form-group">
+            <label htmlFor="estabelecimentoId" className="form-label">
+              Estabelecimento
+            </label>
+            <select
+              id="estabelecimentoId"
+              className="form-input"
+              value={estabelecimentoId}
+              onChange={(e) => setEstabelecimentoId(e.target.value)}
+              disabled={isSubmitting || usuarioProprietario}
+            >
+              <option value="">Sem vínculo de estabelecimento</option>
+              {estabelecimentos.map((estabelecimento) => (
+                <option key={estabelecimento.id} value={estabelecimento.id}>
+                  {estabelecimento.nome}
+                </option>
+              ))}
+            </select>
+            <small className="form-hint">
+              Vincule o usuário a uma unidade para limitar agenda, clientes e operação ao contexto correto.
             </small>
           </div>
 

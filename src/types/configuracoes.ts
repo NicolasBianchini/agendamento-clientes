@@ -15,12 +15,23 @@ export interface ConfiguracoesUsuario {
   notificacoesEmail: boolean
   notificacoesPush: boolean
   lembrarAgendamentos: boolean
+  permiteCancelamentoCliente: boolean
+  permiteRemarcacaoCliente: boolean
+  antecedenciaCancelamentoHoras: number
+  antecedenciaRemarcacaoHoras: number
   // Configurações gerais
   moeda: string // BRL, USD, EUR, etc.
   formatoData: string // DD/MM/YYYY, MM/DD/YYYY, etc.
   formatoHora: '12h' | '24h'
   // Configurações de suporte
   whatsappSuporte?: string // Número de WhatsApp para suporte (opcional)
+  whatsappNotificacoesAtivo?: boolean
+  whatsappTemplateConfirmacao?: string
+  whatsappTemplateLembrete?: string
+  whatsappTemplateCancelamento?: string
+  backendNotificacoesUrl?: string
+  calendarioIntegrado?: boolean
+  calendarioTitulo?: string
   // Timestamps
   dataCriacao?: Date | Timestamp
   dataAtualizacao?: Date | Timestamp

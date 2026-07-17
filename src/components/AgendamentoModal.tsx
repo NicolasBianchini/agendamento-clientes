@@ -1,13 +1,19 @@
 import { useState, useEffect, useRef, useMemo } from 'react'
 import { clientesService, servicosService, agendamentosService, toFirestoreDate } from '../services/firestore'
+import { getUserSession } from '../services/auth'
+import { listarProfissionaisDisponiveis } from '../services/usuarios'
 import { useConfiguracoes } from '../hooks/useConfiguracoes'
 import { formatarMoeda } from '../utils/formatacao'
 import { useKeyboardNavigation } from '../hooks/useKeyboardNavigation'
+import { buildCalendarAssociation } from '../services/agendamentoIntegracoes'
 import './AgendamentoModal.css'
 
 interface Cliente {
   id: string
   nome: string
+  email?: string
+  telefone?: string
+  clienteUserId?: string | null
 }
 
 interface Servico {
@@ -15,6 +21,11 @@ interface Servico {
   nome: string
   valor: number
   ativo: boolean
+}
+
+interface Profissional {
+  id: string
+  nome: string
 }
 
 interface AgendamentoModalProps {
@@ -39,10 +50,17 @@ function AgendamentoModal({
   onSuccess,
 }: AgendamentoModalProps) {
   const { config } = useConfiguracoes()
+  const effectiveConfig = config ?? {
+    horarioInicial: '06:00',
+    horarioFinal: '23:00',
+    intervaloMinutos: 30,
+  }
   const [clientes, setClientes] = useState<Cliente[]>([])
   const [servicos, setServicos] = useState<Servico[]>([])
+  const [profissionais, setProfissionais] = useState<Profissional[]>([])
   const [clienteId, setClienteId] = useState<string>('')
   const [servicoId, setServicoId] = useState<string>('')
+  const [profissionalId, setProfissionalId] = useState<string>('')
   const [data, setData] = useState<string>('')
   const [horarios, setHorarios] = useState<string[]>([])
   const [observacoes, setObservacoes] = useState<string>('')
@@ -50,6 +68,7 @@ function AgendamentoModal({
   const [errors, setErrors] = useState<{
     cliente?: string
     servico?: string
+    profissional?: string
     data?: string
     horario?: string
     conflito?: string
@@ -60,6 +79,7 @@ function AgendamentoModal({
   const [clienteSearch, setClienteSearch] = useState('')
   const [showClienteDropdown, setShowClienteDropdown] = useState(false)
   const autocompleteRef = useRef<HTMLDivElement>(null)
+  const usuarioAtual = getUserSession()
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -110,18 +130,36 @@ function AgendamentoModal({
   const loadData = async (): Promise<void> => {
     setIsLoading(true)
     try {
-      const [clientesData, servicosData] = await Promise.all([
+      const [clientesData, servicosData, profissionaisData] = await Promise.all([
         clientesService.getAll(),
         servicosService.getActive(),
+        listarProfissionaisDisponiveis(usuarioAtual?.estabelecimentoId || undefined),
       ])
 
-      setClientes(clientesData.map((c: any) => ({ id: c.id, nome: c.nome })))
+      setClientes(clientesData.map((c: any) => ({
+        id: c.id,
+        nome: c.nome,
+        email: c.email || '',
+        telefone: c.telefone || '',
+        clienteUserId: c.clienteUserId || null,
+      })))
       setServicos(servicosData.map((s: any) => ({
         id: s.id,
         nome: s.nome,
         valor: s.valor || 0,
         ativo: s.ativo !== false
       })))
+      const profissionaisFormatados = profissionaisData.map((profissional) => ({
+        id: profissional.id,
+        nome: profissional.nome,
+      }))
+      setProfissionais(profissionaisFormatados)
+
+      if (usuarioAtual?.role === 'profissional') {
+        setProfissionalId(usuarioAtual.id)
+      } else if (profissionaisFormatados.length === 1) {
+        setProfissionalId(profissionaisFormatados[0].id)
+      }
     } catch (error) {
       console.error('Erro ao carregar dados:', error)
     } finally {
@@ -177,6 +215,7 @@ function AgendamentoModal({
 
       setClienteId(agendamento.clienteId || '')
       setServicoId(agendamento.servicoId || '')
+      setProfissionalId(agendamento.profissionalId || '')
       setData(agDate)
       setHorarios(horariosArray)
       setObservacoes(agendamento.observacoes || '')
@@ -211,6 +250,10 @@ function AgendamentoModal({
 
     if (!servicoId) {
       newErrors.servico = 'Serviço é obrigatório'
+    }
+
+    if (profissionais.length > 0 && !profissionalId) {
+      newErrors.profissional = 'Profissional é obrigatório'
     }
 
     if (!data) {
@@ -265,11 +308,19 @@ function AgendamentoModal({
 
   const checkConflitoHorario = async (): Promise<boolean> => {
     try {
+      const estabelecimentoId = usuarioAtual?.estabelecimentoId || null
+      if (!estabelecimentoId) {
+        setErrors({ ...errors, conflito: 'Nenhum estabelecimento vinculado ao usuário atual.' })
+        return true
+      }
+
       // Verificar conflito para cada horário selecionado
       for (const horario of horarios) {
         const hasConflict = await agendamentosService.checkTimeConflict(
+          estabelecimentoId,
           data,
           horario,
+          profissionalId || undefined,
           mode === 'edit' && agendamentoId ? agendamentoId : undefined
         )
 
@@ -303,9 +354,9 @@ function AgendamentoModal({
     }
 
     const horarios: string[] = []
-    const [startHour, startMinute] = config.horarioInicial.split(':').map(Number)
-    const [endHour, endMinute] = config.horarioFinal.split(':').map(Number)
-    const intervalo = config.intervaloMinutos
+    const [startHour, startMinute] = effectiveConfig.horarioInicial.split(':').map(Number)
+    const [endHour, endMinute] = effectiveConfig.horarioFinal.split(':').map(Number)
+    const intervalo = effectiveConfig.intervaloMinutos
 
     const startMinutes = startHour * 60 + startMinute
     const endMinutes = endHour * 60 + endMinute
@@ -343,10 +394,23 @@ function AgendamentoModal({
     setIsSubmitting(true)
 
     try {
+      const clienteSelecionado = clientes.find((cliente) => cliente.id === clienteId)
+      const profissionalSelecionado = profissionais.find((profissional) => profissional.id === profissionalId)
+      const servicoSelecionado = servicos.find((servico) => servico.id === servicoId)
+
       // Preparar dados base
       const baseData = {
         clienteId,
+        clienteNome: clienteSelecionado?.nome || null,
+        clienteTelefone: clienteSelecionado?.telefone || null,
+        clienteEmail: clienteSelecionado?.email || null,
+        clienteUserId: clienteSelecionado?.clienteUserId || null,
         servicoId,
+        servicoNome: servicoSelecionado?.nome || null,
+        servicoValor: servicoSelecionado?.valor || 0,
+        profissionalId: profissionalId || null,
+        profissionalNome: profissionalSelecionado?.nome || null,
+        estabelecimentoId: usuarioAtual?.estabelecimentoId || null,
         data: toFirestoreDate(data),
         observacoes: observacoes.trim() || null,
         status,
@@ -358,6 +422,19 @@ function AgendamentoModal({
           await agendamentosService.create({
             ...baseData,
             horario,
+            calendarEvent: buildCalendarAssociation(
+              {
+                data,
+                horario,
+                clienteNome: clienteSelecionado?.nome || null,
+                clienteTelefone: clienteSelecionado?.telefone || null,
+                clienteEmail: clienteSelecionado?.email || null,
+                servicoNome: servicoSelecionado?.nome || null,
+                profissionalNome: profissionalSelecionado?.nome || null,
+                status,
+              },
+              effectiveConfig.intervaloMinutos
+            ),
           })
         }
       } else if (agendamentoId) {
@@ -365,12 +442,39 @@ function AgendamentoModal({
           await agendamentosService.update(agendamentoId, {
             ...baseData,
             horario: horarios[0],
+            calendarEvent: buildCalendarAssociation(
+              {
+                id: agendamentoId,
+                data,
+                horario: horarios[0],
+                clienteNome: clienteSelecionado?.nome || null,
+                clienteTelefone: clienteSelecionado?.telefone || null,
+                clienteEmail: clienteSelecionado?.email || null,
+                servicoNome: servicoSelecionado?.nome || null,
+                profissionalNome: profissionalSelecionado?.nome || null,
+                status,
+              },
+              effectiveConfig.intervaloMinutos
+            ),
           })
 
           for (let i = 1; i < horarios.length; i++) {
             await agendamentosService.create({
               ...baseData,
               horario: horarios[i],
+              calendarEvent: buildCalendarAssociation(
+                {
+                  data,
+                  horario: horarios[i],
+                  clienteNome: clienteSelecionado?.nome || null,
+                  clienteTelefone: clienteSelecionado?.telefone || null,
+                  clienteEmail: clienteSelecionado?.email || null,
+                  servicoNome: servicoSelecionado?.nome || null,
+                  profissionalNome: profissionalSelecionado?.nome || null,
+                  status,
+                },
+                effectiveConfig.intervaloMinutos
+              ),
             })
           }
         }
@@ -394,6 +498,7 @@ function AgendamentoModal({
   const resetForm = () => {
     setClienteId('')
     setServicoId('')
+    setProfissionalId(usuarioAtual?.role === 'profissional' ? usuarioAtual.id : '')
     setData('')
     setHorarios([])
     setObservacoes('')
@@ -560,6 +665,34 @@ function AgendamentoModal({
                 )}
               </div>
 
+              <div className="form-group">
+                <label htmlFor="profissional" className="form-label">
+                  Profissional {profissionais.length > 0 && <span className="required">*</span>}
+                </label>
+                <select
+                  id="profissional"
+                  className={`form-select ${errors.profissional ? 'input-error' : ''}`}
+                  value={profissionalId}
+                  onChange={(e) => {
+                    setProfissionalId(e.target.value)
+                    setErrors({ ...errors, profissional: undefined, conflito: undefined })
+                  }}
+                  disabled={isSubmitting || usuarioAtual?.role === 'profissional'}
+                >
+                  <option value="">
+                    {profissionais.length > 0 ? 'Selecione um profissional' : 'Nenhum profissional disponível'}
+                  </option>
+                  {profissionais.map((profissional) => (
+                    <option key={profissional.id} value={profissional.id}>
+                      {profissional.nome}
+                    </option>
+                  ))}
+                </select>
+                {errors.profissional && (
+                  <span className="error-message">{errors.profissional}</span>
+                )}
+              </div>
+
               <div className="form-row">
                 <div className="form-group">
                   <label htmlFor="data" className="form-label">
@@ -715,4 +848,3 @@ function AgendamentoModal({
 }
 
 export default AgendamentoModal
-

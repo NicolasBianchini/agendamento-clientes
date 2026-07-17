@@ -1,0 +1,125 @@
+%PDF-1.4
+1 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>
+endobj
+2 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold >>
+endobj
+3 0 obj
+<< /Length 2428 >>
+stream
+BT
+/F2 18 Tf
+1 0 0 1 50 782 Tm (Checklist do Projeto) Tj
+/F2 14 Tf
+1 0 0 1 50 754 Tm (PRONTO) Tj
+/F1 11 Tf
+1 0 0 1 50 730 Tm (1. Adicionar nova role proprietario) Tj
+1 0 0 1 50 710 Tm (2. Revisar o tipo UserRole para incluir admin_master, proprietario, admin, profissional,) Tj
+1 0 0 1 68 694 Tm (cliente) Tj
+1 0 0 1 50 674 Tm (3. Ajustar regras de acesso no frontend para cada role) Tj
+1 0 0 1 50 654 Tm (4. Definir telas diferentes para painel interno e portal do cliente) Tj
+1 0 0 1 50 634 Tm (5. Criar colecao estabelecimentos) Tj
+1 0 0 1 50 614 Tm (6. Definir campos do estabelecimento: nome, slug, endereco, telefone, ativo,) Tj
+1 0 0 1 68 598 Tm (configuracoes de funcionamento) Tj
+1 0 0 1 50 578 Tm (7. Vincular usuarios a estabelecimentos) Tj
+1 0 0 1 50 558 Tm (8. Permitir que um estabelecimento tenha multiplos profissionais) Tj
+1 0 0 1 50 538 Tm (9. Modelar profissionais como usuarios com role profissional) Tj
+1 0 0 1 50 518 Tm (10. Criar vinculo profissional -> estabelecimento) Tj
+1 0 0 1 50 498 Tm (11. Criar vinculo profissional -> servicos atendidos) Tj
+1 0 0 1 50 478 Tm (12. Criar disponibilidade por profissional) Tj
+1 0 0 1 50 458 Tm (13. Criar bloqueios/folgas por profissional) Tj
+1 0 0 1 50 438 Tm (14. Transformar cliente em usuario autenticavel com role cliente) Tj
+1 0 0 1 50 418 Tm (15. Garantir cadastro com nome, telefone, email e identificador unico) Tj
+1 0 0 1 50 398 Tm (16. Vincular historico de agendamentos ao clienteUserId) Tj
+1 0 0 1 50 378 Tm (17. Evitar duplicidade de clientes por nome digitado manualmente) Tj
+1 0 0 1 50 358 Tm (18. Adaptar colecao agendamentos) Tj
+1 0 0 1 50 338 Tm (19. Incluir estabelecimentoId) Tj
+1 0 0 1 50 318 Tm (20. Incluir profissionalId) Tj
+1 0 0 1 50 298 Tm (21. Incluir clienteUserId) Tj
+1 0 0 1 50 278 Tm (22. Incluir servicoId) Tj
+1 0 0 1 50 258 Tm (23. Incluir status do agendamento) Tj
+1 0 0 1 50 238 Tm (24. Garantir validacao de conflito por profissional e horario) Tj
+1 0 0 1 50 218 Tm (25. Criar fluxo publico/logado de autoagendamento) Tj
+1 0 0 1 50 198 Tm (26. Exibir selecao de estabelecimento) Tj
+1 0 0 1 50 178 Tm (27. Exibir selecao de servico) Tj
+1 0 0 1 50 158 Tm (28. Exibir selecao de profissional) Tj
+1 0 0 1 50 138 Tm (29. Criar visao do profissional) Tj
+1 0 0 1 50 118 Tm (30. Mostrar somente a propria agenda) Tj
+1 0 0 1 50 98 Tm (31. Criar visao do cliente) Tj
+1 0 0 1 50 78 Tm (32. Revisar modelagem atual baseada em userId) Tj
+ET
+endstream
+endobj
+4 0 obj
+<< /Length 2306 >>
+stream
+BT
+/F1 11 Tf
+1 0 0 1 50 782 Tm (33. Atualizar tipos TypeScript) Tj
+1 0 0 1 50 762 Tm (34. Atualizar servicos do Firestore) Tj
+1 0 0 1 50 742 Tm (35. Atualizar permissoes de navegacao) Tj
+1 0 0 1 50 722 Tm (36. Criar opcao qualquer profissional disponivel) Tj
+1 0 0 1 50 702 Tm (37. Calcular horarios disponiveis por profissional) Tj
+1 0 0 1 50 682 Tm (38. Confirmar agendamento com dados do cliente autenticado) Tj
+1 0 0 1 50 662 Tm (39. Criar visao do proprietario) Tj
+1 0 0 1 50 642 Tm (40. Mostrar agenda completa do estabelecimento) Tj
+1 0 0 1 50 622 Tm (41. Mostrar profissionais vinculados) Tj
+1 0 0 1 50 602 Tm (42. Mostrar clientes do estabelecimento) Tj
+1 0 0 1 50 582 Tm (43. Mostrar servicos e configuracoes da unidade) Tj
+1 0 0 1 50 562 Tm (44. Mostrar somente os proprios atendimentos) Tj
+1 0 0 1 50 542 Tm (45. Restringir edicao ao proprio contexto) Tj
+1 0 0 1 50 522 Tm (46. Mostrar proximos agendamentos) Tj
+1 0 0 1 50 502 Tm (47. Mostrar historico) Tj
+1 0 0 1 50 482 Tm (48. Permitir cancelamento/remarcacao conforme regra do negocio) Tj
+1 0 0 1 50 462 Tm (49. Mostrar dados do estabelecimento e profissional do atendimento) Tj
+1 0 0 1 50 442 Tm (50. Integrar envio de mensagens por WhatsApp) Tj
+1 0 0 1 50 422 Tm (51. Configurar templates de confirmacao) Tj
+1 0 0 1 50 402 Tm (52. Configurar templates de lembrete) Tj
+1 0 0 1 50 382 Tm (53. Configurar templates de cancelamento/remarcacao) Tj
+1 0 0 1 50 362 Tm (54. Mover envio para backend/funcao segura para nao expor token) Tj
+1 0 0 1 50 342 Tm (55. Integrar calendario) Tj
+1 0 0 1 50 322 Tm (56. Criar evento no Google Calendar para o profissional/estabelecimento) Tj
+1 0 0 1 50 302 Tm (57. Gerar .ics para compatibilidade com Apple Calendar) Tj
+1 0 0 1 50 282 Tm (58. Associar evento do calendario ao agendamento) Tj
+1 0 0 1 50 262 Tm (59. Definir comportamento em alteracao e cancelamento) Tj
+1 0 0 1 50 242 Tm (60. Migrar dados existentes para estabelecimentoId) Tj
+1 0 0 1 50 222 Tm (61. Migrar agendamentos existentes para novo formato) Tj
+1 0 0 1 50 202 Tm (62. Validar impacto nas telas atuais) Tj
+1 0 0 1 50 182 Tm (63. Atualizar filtros de agenda) Tj
+1 0 0 1 50 162 Tm (64. Atualizar documentacao do projeto) Tj
+/F2 14 Tf
+1 0 0 1 50 134 Tm (PENDENTE) Tj
+/F1 11 Tf
+1 0 0 1 50 110 Tm (1. Nenhum item pendente nesta etapa) Tj
+ET
+endstream
+endobj
+5 0 obj
+<< /Type /Page /Parent 7 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 1 0 R /F2 2 0 R >> >> /Contents 3 0 R >>
+endobj
+6 0 obj
+<< /Type /Page /Parent 7 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 1 0 R /F2 2 0 R >> >> /Contents 4 0 R >>
+endobj
+7 0 obj
+<< /Type /Pages /Kids [5 0 R 6 0 R] /Count 2 >>
+endobj
+8 0 obj
+<< /Type /Catalog /Pages 7 0 R >>
+endobj
+xref
+0 9
+0000000000 65535 f 
+0000000009 00000 n 
+0000000079 00000 n 
+0000000154 00000 n 
+0000002634 00000 n 
+0000004992 00000 n 
+0000005128 00000 n 
+0000005264 00000 n 
+0000005327 00000 n 
+trailer
+<< /Size 9 /Root 8 0 R >>
+startxref
+5376
+%%EOF

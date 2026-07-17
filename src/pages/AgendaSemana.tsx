@@ -17,6 +17,8 @@ interface Agendamento {
   horario: string
   status: 'agendado' | 'concluido' | 'cancelado'
   data: string // YYYY-MM-DD
+  profissional?: string
+  estabelecimento?: string
 }
 
 function AgendaSemana() {
@@ -87,6 +89,26 @@ function AgendaSemana() {
     loadAgendamentos()
   }, [selectedWeek, config]) // Recarregar quando configurações mudarem
 
+  const normalizeDateKey = (value: any): string | null => {
+    if (!value) {
+      return null
+    }
+
+    if (typeof value === 'string') {
+      return value.split('T')[0]
+    }
+
+    if (value instanceof Date) {
+      return value.toISOString().split('T')[0]
+    }
+
+    if (typeof value?.toDate === 'function') {
+      return value.toDate().toISOString().split('T')[0]
+    }
+
+    return null
+  }
+
   const getWeekStart = (date: Date): Date => {
     const d = new Date(date)
     const day = d.getDay()
@@ -130,11 +152,11 @@ function AgendaSemana() {
       })
 
       agendamentosSemana.forEach((ag: any) => {
-        const agDate = ag.data instanceof Date ? ag.data.toISOString().split('T')[0] : ag.data
+        const agDate = normalizeDateKey(ag.data)
         const cliente = clientes.find((c: any) => c.id === ag.clienteId)
         const servico = servicos.find((s: any) => s.id === ag.servicoId)
 
-        if (agendamentosPorData[agDate]) {
+        if (agDate && agendamentosPorData[agDate]) {
           agendamentosPorData[agDate].push({
             id: ag.id,
             cliente: cliente?.nome || 'Cliente',
@@ -142,6 +164,8 @@ function AgendaSemana() {
             horario: ag.horario,
             status: ag.status,
             data: agDate,
+            profissional: ag.profissionalNome || 'Profissional não definido',
+            estabelecimento: ag.estabelecimentoNome || 'Estabelecimento não definido',
           })
         }
       })
@@ -376,6 +400,8 @@ function AgendaSemana() {
                               {getStatusBadge(agendamento.status)}
                             </div>
                             <p className="agendamento-servico">{agendamento.servico}</p>
+                            <p className="agendamento-meta">{agendamento.profissional || 'Profissional não definido'}</p>
+                            <p className="agendamento-meta">{agendamento.estabelecimento || 'Estabelecimento não definido'}</p>
                             <p className="agendamento-horario">{agendamento.horario}</p>
                           </div>
                         ) : (
@@ -447,4 +473,3 @@ function AgendaSemana() {
 }
 
 export default AgendaSemana
-

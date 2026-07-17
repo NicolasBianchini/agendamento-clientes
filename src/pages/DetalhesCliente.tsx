@@ -10,6 +10,9 @@ interface Cliente {
   id: string
   nome: string
   telefone: string
+  email: string
+  clienteUserId?: string | null
+  identificador?: string
   observacoes?: string
   dataCadastro: string
 }
@@ -65,6 +68,9 @@ function DetalhesCliente() {
         id: clienteData.id,
         nome: clienteData.nome,
         telefone: telefoneFormatado,
+        email: clienteData.email || '',
+        clienteUserId: clienteData.clienteUserId || null,
+        identificador: clienteData.identificador || '',
         observacoes: clienteData.observacoes,
         dataCadastro: clienteData.dataCadastro || new Date().toISOString(),
       })
@@ -81,7 +87,10 @@ function DetalhesCliente() {
 
     try {
       // Buscar agendamentos concluídos do cliente no Firestore
-      const agendamentos = await agendamentosService.getByCliente(id)
+      const clienteData = await clientesService.getById(id)
+      const agendamentos = clienteData?.clienteUserId
+        ? await agendamentosService.getByClienteUserId(clienteData.clienteUserId)
+        : await agendamentosService.getByCliente(id)
 
       // Filtrar apenas concluídos e buscar dados dos serviços
       const concluidos = agendamentos.filter((ag: any) => ag.status === 'concluido')
@@ -132,7 +141,9 @@ function DetalhesCliente() {
     setIsDeleting(true)
     try {
       // Verificar se tem agendamentos
-      const agendamentos = await agendamentosService.getByCliente(cliente.id)
+      const agendamentos = cliente.clienteUserId
+        ? await agendamentosService.getByClienteUserId(cliente.clienteUserId)
+        : await agendamentosService.getByCliente(cliente.id)
       if (agendamentos.length > 0) {
         alert(`Este cliente possui ${agendamentos.length} agendamento(s). Não é possível excluir.`)
         setIsDeleting(false)
@@ -243,6 +254,17 @@ function DetalhesCliente() {
               <div className="info-item">
                 <span className="info-label">
                   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M4 4h16v16H4z"></path>
+                    <path d="m22 6-10 7L2 6"></path>
+                  </svg>
+                  Email:
+                </span>
+                <span className="info-value">{cliente.email}</span>
+              </div>
+
+              <div className="info-item">
+                <span className="info-label">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                     <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
                     <line x1="16" y1="2" x2="16" y2="6"></line>
                     <line x1="8" y1="2" x2="8" y2="6"></line>
@@ -252,6 +274,20 @@ function DetalhesCliente() {
                 </span>
                 <span className="info-value">{formatDate(cliente.dataCadastro)}</span>
               </div>
+
+              {cliente.identificador && (
+                <div className="info-item">
+                  <span className="info-label">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <path d="M3 12h18"></path>
+                      <path d="M3 6h18"></path>
+                      <path d="M3 18h18"></path>
+                    </svg>
+                    Identificador:
+                  </span>
+                  <span className="info-value">{cliente.identificador}</span>
+                </div>
+              )}
 
               {cliente.observacoes && (
                 <div className="info-item info-item-full">
@@ -375,6 +411,7 @@ function DetalhesCliente() {
         clienteData={{
           id: cliente.id,
           nome: cliente.nome,
+          email: cliente.email,
           telefone: cliente.telefone,
           observacoes: cliente.observacoes,
         }}
@@ -413,4 +450,3 @@ function DetalhesCliente() {
 }
 
 export default DetalhesCliente
-

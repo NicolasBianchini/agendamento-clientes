@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { Outlet, useLocation, useNavigate } from 'react-router-dom'
-import { getUserSession, logout, isAuthenticated, isAdminMaster, isAccessExpired, isAccessExpiring, getDaysUntilExpiration, refreshUserSession } from '../services/auth'
+import { getUserSession, logout, isAuthenticated, isAdmin, isAdminMaster, isProprietario, isCliente, isProfissional, getDefaultRouteForUser, isAccessExpired, isAccessExpiring, getDaysUntilExpiration, refreshUserSession } from '../services/auth'
 import { useConfiguracoes } from '../hooks/useConfiguracoes'
 import { gerarLinkWhatsApp } from '../utils/formatacao'
 import AcessoExpiradoModal from './AcessoExpiradoModal'
@@ -30,6 +30,10 @@ function Layout({ userName }: LayoutProps) {
 
     const usuario = getUserSession()
     if (usuario) {
+      if (isCliente(usuario)) {
+        navigate(getDefaultRouteForUser(usuario))
+        return
+      }
       setCurrentUserName(usuario.nome)
     }
   }, [navigate, location.pathname]) // Re-executar quando a rota mudar para atualizar menu
@@ -191,15 +195,28 @@ function Layout({ userName }: LayoutProps) {
 
   const usuario = getUserSession()
   const isMaster = isAdminMaster(usuario)
+  const usuarioProprietario = isProprietario(usuario)
+  const usuarioCliente = isCliente(usuario)
+  const usuarioAdmin = isAdmin(usuario)
+  const usuarioAdminPuro = usuario?.role === 'admin'
+  const usuarioProfissional = isProfissional(usuario)
+  const podeGerirCadastros = usuarioAdmin && !usuarioProfissional
+  const podeVerAgenda = usuarioProfissional || usuarioProprietario
+  const podeVerMinhaDisponibilidade = usuarioProfissional || usuarioProprietario
+  const podeVerClientes = podeGerirCadastros && !isMaster && !usuarioAdminPuro
+  const podeVerServicos = podeGerirCadastros && !isMaster && !usuarioAdminPuro
+  const podeVerHistorico = !usuarioCliente && !isMaster && !usuarioAdminPuro
 
   const menuItems = [
     { path: '/dashboard', label: 'Dashboard', iconName: 'dashboard' },
-    { path: '/clientes', label: 'Clientes', iconName: 'clientes' },
-    { path: '/servicos', label: 'Serviços', iconName: 'servicos' },
-    { path: '/agenda', label: 'Agenda', iconName: 'agenda' },
-    { path: '/historico', label: 'Histórico', iconName: 'historico' },
-    ...(isMaster ? [{ path: '/usuarios', label: 'Usuários', iconName: 'usuarios' }] : []),
-    { path: '/configuracoes', label: 'Configurações', iconName: 'configuracoes' },
+    ...(podeVerAgenda ? [{ path: '/agenda', label: 'Agenda', iconName: 'agenda' }] : []),
+    ...(podeVerClientes ? [{ path: '/clientes', label: 'Clientes', iconName: 'clientes' }] : []),
+    ...(podeVerServicos ? [{ path: '/servicos', label: 'Serviços', iconName: 'servicos' }] : []),
+    ...(isMaster ? [{ path: '/estabelecimentos', label: 'Estabelecimentos', iconName: 'configuracoes' }] : []),
+    ...(podeVerMinhaDisponibilidade ? [{ path: '/profissionais', label: 'Disponibilidade', iconName: 'usuarios' }] : []),
+    ...(podeVerHistorico ? [{ path: '/historico', label: usuarioProfissional ? 'Meus Atendimentos' : 'Histórico', iconName: 'historico' }] : []),
+    ...((isMaster || usuarioProprietario) ? [{ path: '/usuarios', label: usuarioProprietario && !isMaster ? 'Equipe' : 'Usuários', iconName: 'usuarios' }] : []),
+    ...((usuarioAdmin || usuarioProfissional) ? [{ path: '/configuracoes', label: 'Configurações', iconName: 'configuracoes' }] : []),
   ]
 
   const isActive = (path: string) => {
@@ -348,4 +365,3 @@ function Layout({ userName }: LayoutProps) {
 }
 
 export default Layout
-

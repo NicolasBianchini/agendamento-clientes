@@ -1,9 +1,16 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { clientesService, agendamentosService, servicosService } from '../services/firestore'
-import { getUserSession, isAccessExpired } from '../services/auth'
+import {
+  clientesService,
+  agendamentosService,
+  servicosService,
+  estabelecimentosService,
+  profissionalServicosService,
+} from '../services/firestore'
+import { getUserSession, isAccessExpired, isAdmin, isProfissional, isProprietario } from '../services/auth'
 import { useConfiguracoes } from '../hooks/useConfiguracoes'
 import { formatarMoeda, gerarLinkWhatsApp } from '../utils/formatacao'
+import { listarProfissionaisDisponiveis } from '../services/usuarios'
 import NovoClienteModal from '../components/NovoClienteModal'
 import AgendamentoModal from '../components/AgendamentoModal'
 import AgendamentoDetalhesModal from '../components/AgendamentoDetalhesModal'
@@ -23,14 +30,23 @@ interface Appointment {
   cliente: string
   servico: string
   data: string
-  horario: string | string[] // Pode ser um único horário ou array de horários
+  horario: string | string[]
   status: 'agendado' | 'concluido' | 'cancelado'
-  ids?: string[] // IDs dos agendamentos agrupados
+  ids?: string[]
 }
 
 function Dashboard() {
   const { config } = useConfiguracoes()
   const navigate = useNavigate()
+  const usuario = getUserSession()
+  const acessoExpirado = isAccessExpired(usuario)
+  const usuarioAdmin = isAdmin(usuario)
+  const usuarioProfissional = isProfissional(usuario)
+  const usuarioProprietario = isProprietario(usuario)
+  const podeGerirCadastros = usuarioAdmin && !usuarioProfissional
+  const adminSemContextoOperacional = usuarioAdmin && !usuarioProprietario && !usuarioProfissional
+  const podeOperarAgenda = usuarioProfissional || usuarioProprietario
+
   const [isLoading, setIsLoading] = useState(true)
   const [showNovoClienteModal, setShowNovoClienteModal] = useState(false)
   const [showAgendamentoModal, setShowAgendamentoModal] = useState(false)
@@ -45,9 +61,12 @@ function Dashboard() {
     faturadoHoje: 0,
   })
   const [proximosAgendamentos, setProximosAgendamentos] = useState<Appointment[]>([])
-
-  const usuario = getUserSession()
-  const acessoExpirado = isAccessExpired(usuario)
+  const [historicoRecente, setHistoricoRecente] = useState<Appointment[]>([])
+  const [estabelecimentoAtual, setEstabelecimentoAtual] = useState<any | null>(null)
+  const [profissionaisVinculados, setProfissionaisVinculados] = useState<any[]>([])
+  const [clientesDaUnidade, setClientesDaUnidade] = useState<any[]>([])
+  const [servicosVinculados, setServicosVinculados] = useState<any[]>([])
+  const [servicosDoProfissional, setServicosDoProfissional] = useState<any[]>([])
 
   const addToast = (message: string, type: ToastType = 'info') => {
     const id = Date.now().toString()
@@ -93,18 +112,75 @@ function Dashboard() {
 
   const temWhatsappSuporte = config?.whatsappSuporte && config.whatsappSuporte.trim() !== ''
 
+  const getDateString = (agData: any): string => {
+    if (!agData) return ''
+    if (agData.toDate && typeof agData.toDate === 'function') {
+      return agData.toDate().toISOString().split('T')[0]
+    }
+    if (agData instanceof Date) {
+      return agData.toISOString().split('T')[0]
+    }
+    if (typeof agData === 'string') {
+      return agData.split('T')[0]
+    }
+    return ''
+  }
+
+  const agruparAgendamentos = (agendamentos: any[]) => {
+    const agrupados: any[] = []
+    const processados = new Set<string>()
+
+    for (let i = 0; i < agendamentos.length; i++) {
+      if (processados.has(agendamentos[i].id)) continue
+
+      const atual = agendamentos[i]
+      const grupo: any[] = [atual]
+      processados.add(atual.id)
+
+      for (let j = i + 1; j < agendamentos.length; j++) {
+        const proximo = agendamentos[j]
+
+        if (
+          !processados.has(proximo.id) &&
+          proximo.clienteId === atual.clienteId &&
+          proximo.servicoId === atual.servicoId &&
+          getDateString(proximo.data) === getDateString(atual.data)
+        ) {
+          const horarioAtual = (grupo[grupo.length - 1].horario || '').split(':').map(Number)
+          const horarioProximo = (proximo.horario || '').split(':').map(Number)
+
+          if (horarioAtual.length === 2 && horarioProximo.length === 2) {
+            const minutosAtual = horarioAtual[0] * 60 + horarioAtual[1]
+            const minutosProximo = horarioProximo[0] * 60 + horarioProximo[1]
+
+            if (minutosProximo - minutosAtual === 30) {
+              grupo.push(proximo)
+              processados.add(proximo.id)
+            } else {
+              break
+            }
+          }
+        } else {
+          break
+        }
+      }
+
+      agrupados.push(grupo)
+    }
+
+    return agrupados
+  }
+
   const loadData = async () => {
     setIsLoading(true)
 
     try {
-      // Buscar dados do Firestore
       const [clientes, todosAgendamentos, servicos] = await Promise.all([
         clientesService.getAll(),
         agendamentosService.getAll(),
         servicosService.getAll(),
       ])
 
-      // Calcular estatísticas
       const hoje = new Date()
       hoje.setHours(0, 0, 0, 0)
       const hojeStr = hoje.toISOString().split('T')[0]
@@ -113,241 +189,127 @@ function Dashboard() {
       fimSemana.setDate(hoje.getDate() + 7)
       const fimSemanaStr = fimSemana.toISOString().split('T')[0]
 
-      // Função auxiliar para converter data do Firestore para string YYYY-MM-DD
-      const getDateString = (agData: any): string => {
-        if (!agData) return ''
+      const agendamentosHoje = todosAgendamentos.filter((ag: any) => {
+        const data = getDateString(ag.data)
+        return data === hojeStr && ag.status === 'agendado'
+      })
 
-        // Se for Timestamp do Firestore
-        if (agData.toDate && typeof agData.toDate === 'function') {
-          return agData.toDate().toISOString().split('T')[0]
-        }
+      const agendamentosSemana = todosAgendamentos.filter((ag: any) => {
+        const data = getDateString(ag.data)
+        return data >= hojeStr && data <= fimSemanaStr && ag.status === 'agendado'
+      })
 
-        // Se for Date
-        if (agData instanceof Date) {
-          return agData.toISOString().split('T')[0]
-        }
-
-        // Se for string
-        if (typeof agData === 'string') {
-          return agData.split('T')[0]
-        }
-
-        return ''
-      }
-
-      // Função para agrupar agendamentos consecutivos
-      const agruparAgendamentos = (agendamentos: any[]): any[] => {
-        const agrupados: any[] = []
-        const processados = new Set<string>()
-
-        for (let i = 0; i < agendamentos.length; i++) {
-          if (processados.has(agendamentos[i].id)) continue
-
-          const agendamentoAtual = agendamentos[i]
-          const grupo: any[] = [agendamentoAtual]
-          processados.add(agendamentoAtual.id)
-
-          // Verificar se há agendamentos consecutivos (mesmo cliente, serviço e data)
-          for (let j = i + 1; j < agendamentos.length; j++) {
-            const proximoAgendamento = agendamentos[j]
-
-            if (
-              !processados.has(proximoAgendamento.id) &&
-              proximoAgendamento.clienteId === agendamentoAtual.clienteId &&
-              proximoAgendamento.servicoId === agendamentoAtual.servicoId &&
-              getDateString(proximoAgendamento.data) === getDateString(agendamentoAtual.data)
-            ) {
-              // Verificar se é consecutivo (diferença de 30 minutos)
-              const horarioAtual = (agendamentoAtual.horario || '').split(':').map(Number)
-              const horarioProximo = (proximoAgendamento.horario || '').split(':').map(Number)
-
-              if (horarioAtual.length === 2 && horarioProximo.length === 2) {
-                const minutosProximo = horarioProximo[0] * 60 + horarioProximo[1]
-
-                // Verificar se o último horário do grupo é 30 minutos antes do próximo
-                const ultimoHorario = (grupo[grupo.length - 1].horario || '').split(':').map(Number)
-                const minutosUltimo = ultimoHorario[0] * 60 + ultimoHorario[1]
-
-                if (minutosProximo - minutosUltimo === 30) {
-                  grupo.push(proximoAgendamento)
-                  processados.add(proximoAgendamento.id)
-                } else {
-                  break
-                }
-              } else {
-                break
-              }
-            } else {
-              break
-            }
-          }
-
-          // Adicionar apenas um agendamento agrupado (ou individual)
-          agrupados.push(grupo[0])
-        }
-
-        return agrupados
-      }
-
-      // Filtrar e agrupar agendamentos de hoje
-      const agendamentosHojeFiltrados = todosAgendamentos
-        .filter((ag: any) => {
-          const agDateStr = getDateString(ag.data)
-          return agDateStr === hojeStr && ag.status === 'agendado'
-        })
-        .sort((a: any, b: any) => {
-          const dateAStr = getDateString(a.data)
-          const dateBStr = getDateString(b.data)
-
-          if (dateAStr !== dateBStr) {
-            return dateAStr.localeCompare(dateBStr)
-          }
-
-          return (a.horario || '').localeCompare(b.horario || '')
-        })
-
-      const agendamentosHoje = agruparAgendamentos(agendamentosHojeFiltrados)
-
-      // Filtrar e agrupar agendamentos da semana
-      const agendamentosSemanaFiltrados = todosAgendamentos
-        .filter((ag: any) => {
-          const agDateStr = getDateString(ag.data)
-          return agDateStr >= hojeStr && agDateStr <= fimSemanaStr && ag.status === 'agendado'
-        })
-        .sort((a: any, b: any) => {
-          const dateAStr = getDateString(a.data)
-          const dateBStr = getDateString(b.data)
-
-          if (dateAStr !== dateBStr) {
-            return dateAStr.localeCompare(dateBStr)
-          }
-
-          return (a.horario || '').localeCompare(b.horario || '')
-        })
-
-      const agendamentosSemana = agruparAgendamentos(agendamentosSemanaFiltrados)
-
-      // Calcular faturado hoje (agendamentos concluídos hoje)
       const concluidosHoje = todosAgendamentos.filter((ag: any) => {
-        if (ag.status !== 'concluido') return false
-
-        const agDateStr = getDateString(ag.data)
-        return agDateStr === hojeStr
+        const data = getDateString(ag.data)
+        return data === hojeStr && ag.status === 'concluido'
       })
 
       const faturadoHoje = concluidosHoje.reduce((total: number, ag: any) => {
-        const servico = servicos.find((s: any) => s.id === ag.servicoId)
+        const servico = servicos.find((item: any) => item.id === ag.servicoId)
         return total + (servico?.valor || ag.servicoValor || 0)
       }, 0)
 
+      const totalClientes = usuarioProfissional
+        ? new Set(todosAgendamentos.map((ag: any) => ag.clienteId).filter(Boolean)).size
+        : clientes.length
+
+      setClientesDaUnidade(clientes)
+
       setStats({
-        totalClientes: clientes.length,
-        agendamentosHoje: agendamentosHoje.length,
-        agendamentosSemana: agendamentosSemana.length,
+        totalClientes,
+        agendamentosHoje: agruparAgendamentos(
+          agendamentosHoje.sort((a: any, b: any) => (a.horario || '').localeCompare(b.horario || ''))
+        ).length,
+        agendamentosSemana: agruparAgendamentos(
+          agendamentosSemana.sort((a: any, b: any) => {
+            const dateA = getDateString(a.data)
+            const dateB = getDateString(b.data)
+            return dateA === dateB
+              ? (a.horario || '').localeCompare(b.horario || '')
+              : dateA.localeCompare(dateB)
+          })
+        ).length,
         faturadoHoje,
       })
 
-      // Buscar próximos agendamentos (próximos 5 agendados)
       const agendamentosFuturos = todosAgendamentos
-        .filter((ag: any) => {
-          const agDateStr = getDateString(ag.data)
-          return agDateStr >= hojeStr && ag.status === 'agendado'
-        })
+        .filter((ag: any) => getDateString(ag.data) >= hojeStr && ag.status === 'agendado')
         .sort((a: any, b: any) => {
-          const dateAStr = getDateString(a.data)
-          const dateBStr = getDateString(b.data)
-
-          if (dateAStr !== dateBStr) {
-            return dateAStr.localeCompare(dateBStr)
-          }
-
-          // Se for o mesmo dia, ordenar por horário
-          return (a.horario || '').localeCompare(b.horario || '')
+          const dateA = getDateString(a.data)
+          const dateB = getDateString(b.data)
+          return dateA === dateB
+            ? (a.horario || '').localeCompare(b.horario || '')
+            : dateA.localeCompare(dateB)
         })
+
+      const proximos = agruparAgendamentos(agendamentosFuturos)
+        .map((grupo: any[]) => {
+          const primeiro = grupo[0]
+          const cliente = clientes.find((item: any) => item.id === primeiro.clienteId)
+          const servico = servicos.find((item: any) => item.id === primeiro.servicoId)
+          const horarios = grupo.map((item) => item.horario).sort()
+
+          return {
+            id: primeiro.id,
+            ids: grupo.map((item) => item.id),
+            cliente: cliente?.nome || 'Cliente',
+            servico: servico?.nome || primeiro.servicoNome || 'Serviço',
+            data: getDateString(primeiro.data),
+            horario: horarios.length > 1 ? horarios : horarios[0],
+            status: primeiro.status,
+          } as Appointment
+        })
+        .slice(0, 5)
+
+      setProximosAgendamentos(proximos)
+
+      const historicoAdministrativo = todosAgendamentos
+        .filter((ag: any) => ag.status === 'concluido' || ag.status === 'cancelado')
+        .sort((a: any, b: any) => {
+          const dateA = getDateString(a.data)
+          const dateB = getDateString(b.data)
+          return dateA === dateB
+            ? String(b.horario || '').localeCompare(String(a.horario || ''))
+            : dateB.localeCompare(dateA)
+        })
+        .slice(0, 5)
         .map((ag: any) => {
-          const servico = servicos.find((s: any) => s.id === ag.servicoId)
-          const cliente = clientes.find((c: any) => c.id === ag.clienteId)
+          const cliente = clientes.find((item: any) => item.id === ag.clienteId)
+          const servico = servicos.find((item: any) => item.id === ag.servicoId)
 
           return {
             id: ag.id,
-            clienteId: ag.clienteId,
             cliente: cliente?.nome || 'Cliente',
-            servicoId: ag.servicoId,
             servico: servico?.nome || ag.servicoNome || 'Serviço',
             data: getDateString(ag.data),
             horario: ag.horario || '',
             status: ag.status,
-          }
+          } as Appointment
         })
 
-      // Agrupar agendamentos consecutivos do mesmo cliente, serviço e data
-      const agendamentosAgrupados: Appointment[] = []
-      const processados = new Set<string>()
+      setHistoricoRecente(historicoAdministrativo)
 
-      for (let i = 0; i < agendamentosFuturos.length; i++) {
-        if (processados.has(agendamentosFuturos[i].id)) continue
+      if (usuario?.estabelecimentoId) {
+        const [estabelecimento, profissionais] = await Promise.all([
+          estabelecimentosService.getById(usuario.estabelecimentoId),
+          listarProfissionaisDisponiveis(usuario.estabelecimentoId),
+        ])
 
-        const agendamentoAtual = agendamentosFuturos[i]
-        const grupo: typeof agendamentosFuturos = [agendamentoAtual]
-        processados.add(agendamentoAtual.id)
-
-        // Verificar se há agendamentos consecutivos (mesmo cliente, serviço e data)
-        for (let j = i + 1; j < agendamentosFuturos.length; j++) {
-          const proximoAgendamento = agendamentosFuturos[j]
-
-          if (
-            !processados.has(proximoAgendamento.id) &&
-            proximoAgendamento.clienteId === agendamentoAtual.clienteId &&
-            proximoAgendamento.servicoId === agendamentoAtual.servicoId &&
-            proximoAgendamento.data === agendamentoAtual.data
-          ) {
-            // Verificar se é consecutivo (diferença de 30 minutos)
-            const horarioProximo = proximoAgendamento.horario.split(':').map(Number)
-            const minutosProximo = horarioProximo[0] * 60 + horarioProximo[1]
-
-            // Verificar se o último horário do grupo é 30 minutos antes do próximo
-            const ultimoHorario = grupo[grupo.length - 1].horario.split(':').map(Number)
-            const minutosUltimo = ultimoHorario[0] * 60 + ultimoHorario[1]
-
-            if (minutosProximo - minutosUltimo === 30) {
-              grupo.push(proximoAgendamento)
-              processados.add(proximoAgendamento.id)
-            } else {
-              break
-            }
-          } else {
-            break
-          }
-        }
-
-        // Criar card agrupado ou individual
-        if (grupo.length > 1) {
-          // Múltiplos horários consecutivos
-          agendamentosAgrupados.push({
-            id: grupo[0].id,
-            ids: grupo.map(g => g.id),
-            cliente: grupo[0].cliente,
-            servico: grupo[0].servico,
-            data: grupo[0].data,
-            horario: grupo.map(g => g.horario).sort(),
-            status: grupo[0].status,
-          })
-        } else {
-          // Agendamento individual
-          agendamentosAgrupados.push({
-            id: grupo[0].id,
-            cliente: grupo[0].cliente,
-            servico: grupo[0].servico,
-            data: grupo[0].data,
-            horario: grupo[0].horario,
-            status: grupo[0].status,
-          })
-        }
+        setEstabelecimentoAtual(estabelecimento)
+        setProfissionaisVinculados(profissionais.filter((item) => item.role === 'profissional'))
+      } else {
+        setEstabelecimentoAtual(null)
+        setProfissionaisVinculados([])
       }
 
-      const proximos = agendamentosAgrupados.slice(0, 5)
+      setServicosVinculados(servicos.filter((item: any) => item.ativo !== false))
 
-      setProximosAgendamentos(proximos)
+      if (usuarioProfissional && usuario?.id) {
+        const vinculos = await profissionalServicosService.getByProfissional(usuario.id)
+        setServicosDoProfissional(vinculos)
+      } else {
+        setServicosDoProfissional([])
+      }
     } catch (error) {
       console.error('Erro ao carregar dados do dashboard:', error)
     } finally {
@@ -359,10 +321,8 @@ function Dashboard() {
     loadData()
   }, [])
 
-  // Usar formatarMoeda com configurações do usuário
-
   const formatDate = (dateString: string) => {
-    const date = new Date(dateString)
+    const date = new Date(`${dateString}T00:00:00`)
     return date.toLocaleDateString('pt-BR', {
       day: '2-digit',
       month: 'short',
@@ -375,13 +335,23 @@ function Dashboard() {
       concluido: { label: 'Concluído', class: 'status-concluido' },
       cancelado: { label: 'Cancelado', class: 'status-cancelado' },
     }
-    const config = statusConfig[status as keyof typeof statusConfig] || statusConfig.agendado
-    return <span className={`status-badge ${config.class}`}>{config.label}</span>
+    const statusItem = statusConfig[status as keyof typeof statusConfig] || statusConfig.agendado
+    return <span className={`status-badge ${statusItem.class}`}>{statusItem.label}</span>
+  }
+
+  const getRoleSubtitle = () => {
+    if (usuarioProfissional) {
+      return 'Visão do profissional com foco apenas nos seus atendimentos.'
+    }
+    if (usuarioProprietario) {
+      return 'Visão do proprietário com agenda completa, equipe e operação da unidade.'
+    }
+    return 'Visão administrativa com foco em cadastros, configurações e controle geral do sistema.'
   }
 
   const statCards: StatCard[] = [
     {
-      title: 'Total de Clientes',
+      title: usuarioProfissional ? 'Clientes Atendidos' : 'Total de Clientes',
       value: stats.totalClientes,
       icon: (
         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -394,7 +364,7 @@ function Dashboard() {
       color: 'primary',
     },
     {
-      title: 'Agendamentos Hoje',
+      title: adminSemContextoOperacional ? 'Agendamentos no Sistema Hoje' : 'Agendamentos Hoje',
       value: stats.agendamentosHoje,
       icon: (
         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -407,7 +377,7 @@ function Dashboard() {
       color: 'secondary',
     },
     {
-      title: 'Esta Semana',
+      title: usuarioProfissional ? 'Seus Atendimentos na Semana' : adminSemContextoOperacional ? 'Agenda Geral da Semana' : 'Agenda da Semana',
       value: stats.agendamentosSemana,
       icon: (
         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -418,7 +388,7 @@ function Dashboard() {
       color: 'accent',
     },
     {
-      title: 'Faturado Hoje',
+      title: usuarioProfissional ? 'Faturado nos Seus Atendimentos' : adminSemContextoOperacional ? 'Faturado no Sistema Hoje' : 'Faturado Hoje',
       value: formatarMoeda(stats.faturadoHoje, config),
       icon: (
         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -444,11 +414,10 @@ function Dashboard() {
       <div className="dashboard-header">
         <div>
           <h1 className="dashboard-title">Dashboard</h1>
-          <p className="dashboard-subtitle">Visão geral do seu negócio</p>
+          <p className="dashboard-subtitle">{getRoleSubtitle()}</p>
         </div>
       </div>
 
-      {/* Cards de Estatísticas */}
       <div className="stats-grid">
         {statCards.map((card, index) => (
           <div key={index} className={`stat-card stat-card-${card.color}`}>
@@ -461,113 +430,277 @@ function Dashboard() {
         ))}
       </div>
 
+      {(usuarioProprietario || usuarioProfissional) && (
+        <div className="dashboard-context-grid">
+          {usuarioProprietario && (
+            <section className="dashboard-section">
+              <div className="section-header">
+                <h2 className="section-title">Contexto da unidade</h2>
+              </div>
+              <div className="dashboard-context-list">
+                <div>
+                  <strong>Estabelecimento</strong>
+                  <span>{estabelecimentoAtual?.nome || 'Não vinculado'}</span>
+                </div>
+                <div>
+                  <strong>Telefone</strong>
+                  <span>{estabelecimentoAtual?.telefone || 'Não informado'}</span>
+                </div>
+                <div>
+                  <strong>Endereço</strong>
+                  <span>{estabelecimentoAtual?.endereco || 'Não informado'}</span>
+                </div>
+                <div>
+                  <strong>Funcionamento</strong>
+                  <span>{config ? `${config.horarioInicial} às ${config.horarioFinal}` : '06:00 às 23:00'}</span>
+                </div>
+                <div>
+                  <strong>Intervalo</strong>
+                  <span>{config?.intervaloMinutos ?? 30} minutos</span>
+                </div>
+              </div>
+            </section>
+          )}
+
+          {usuarioProprietario && (
+            <section className="dashboard-section">
+              <div className="section-header">
+                <h2 className="section-title">Equipe e serviços</h2>
+              </div>
+              <div className="dashboard-mini-stats">
+                <div className="dashboard-mini-stat">
+                  <strong>{profissionaisVinculados.length}</strong>
+                  <span>profissionais vinculados</span>
+                </div>
+                <div className="dashboard-mini-stat">
+                  <strong>{stats.totalClientes}</strong>
+                  <span>clientes da unidade</span>
+                </div>
+                <div className="dashboard-mini-stat">
+                  <strong>{servicosVinculados.length}</strong>
+                  <span>serviços ativos</span>
+                </div>
+              </div>
+              <div className="dashboard-pill-list">
+                {profissionaisVinculados.slice(0, 6).map((profissional) => (
+                  <span key={profissional.id} className="dashboard-pill">{profissional.nome}</span>
+                ))}
+                {profissionaisVinculados.length === 0 && <p>Nenhum profissional vinculado.</p>}
+              </div>
+              <div className="dashboard-subsection">
+                <strong>Clientes do estabelecimento</strong>
+                <div className="dashboard-pill-list">
+                  {clientesDaUnidade.slice(0, 6).map((cliente) => (
+                    <span key={cliente.id} className="dashboard-pill">{cliente.nome}</span>
+                  ))}
+                  {clientesDaUnidade.length === 0 && <p>Nenhum cliente cadastrado.</p>}
+                </div>
+              </div>
+              <div className="dashboard-subsection">
+                <strong>Serviços da unidade</strong>
+                <div className="dashboard-pill-list">
+                  {servicosVinculados.slice(0, 6).map((servico) => (
+                    <span key={servico.id} className="dashboard-pill">{servico.nome}</span>
+                  ))}
+                  {servicosVinculados.length === 0 && <p>Nenhum serviço ativo cadastrado.</p>}
+                </div>
+              </div>
+            </section>
+          )}
+
+          {usuarioProfissional && (
+            <section className="dashboard-section">
+              <div className="section-header">
+                <h2 className="section-title">Seus serviços vinculados</h2>
+              </div>
+              <div className="dashboard-pill-list">
+                {servicosDoProfissional.map((item) => (
+                  <span key={item.id} className="dashboard-pill">{item.servicoNome}</span>
+                ))}
+                {servicosDoProfissional.length === 0 && <p>Nenhum serviço vinculado ao seu usuário.</p>}
+              </div>
+            </section>
+          )}
+        </div>
+      )}
+
       <div className="dashboard-content">
-        {/* Próximos Agendamentos */}
         <section className="dashboard-section">
-          <div className="section-header">
-            <h2 className="section-title">Próximos Agendamentos</h2>
-            <button
-              className="section-link"
-              onClick={() => navigate('/agenda')}
-            >
-              Ver todos
-            </button>
-          </div>
+          {adminSemContextoOperacional ? (
+            <>
+              <div className="section-header">
+                <h2 className="section-title">Visão administrativa</h2>
+                <button className="section-link" onClick={() => navigate('/historico')}>
+                  Abrir histórico
+                </button>
+              </div>
 
-          {proximosAgendamentos.length === 0 ? (
-            <div className="empty-state">
-              <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
-                <line x1="16" y1="2" x2="16" y2="6"></line>
-                <line x1="8" y1="2" x2="8" y2="6"></line>
-                <line x1="3" y1="10" x2="21" y2="10"></line>
-              </svg>
-              <p>Nenhum agendamento próximo</p>
-            </div>
+              <div className="dashboard-mini-stats">
+                <div className="dashboard-mini-stat">
+                  <strong>{clientesDaUnidade.length}</strong>
+                  <span>clientes cadastrados</span>
+                </div>
+                <div className="dashboard-mini-stat">
+                  <strong>{servicosVinculados.length}</strong>
+                  <span>serviços ativos</span>
+                </div>
+                <div className="dashboard-mini-stat">
+                  <strong>{historicoRecente.length}</strong>
+                  <span>atendimentos recentes</span>
+                </div>
+              </div>
+
+              {historicoRecente.length === 0 ? (
+                <div className="empty-state">
+                  <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                    <line x1="16" y1="2" x2="16" y2="6"></line>
+                    <line x1="8" y1="2" x2="8" y2="6"></line>
+                    <line x1="3" y1="10" x2="21" y2="10"></line>
+                  </svg>
+                  <p>Nenhum histórico recente encontrado</p>
+                </div>
+              ) : (
+                <div className="appointments-list">
+                  {historicoRecente.map((appointment) => (
+                    <div
+                      key={appointment.id}
+                      className="appointment-card"
+                      onClick={() => {
+                        setSelectedAgendamentoId(appointment.id)
+                        setShowDetalhesModal(true)
+                      }}
+                    >
+                      <div className="appointment-time">
+                        <span className="appointment-hour">{String(appointment.horario || '-')}</span>
+                        <span className="appointment-date">{formatDate(appointment.data)}</span>
+                      </div>
+                      <div className="appointment-info">
+                        <h3 className="appointment-client">{appointment.cliente}</h3>
+                        <p className="appointment-service">{appointment.servico}</p>
+                      </div>
+                      <div className="appointment-status">
+                        {getStatusBadge(appointment.status)}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </>
           ) : (
-            <div className="appointments-list">
-              {proximosAgendamentos.map((appointment) => {
-                const horarios = Array.isArray(appointment.horario)
-                  ? appointment.horario
-                  : [appointment.horario]
-                const primeiroHorario = horarios[0]
-                const ultimoHorario = horarios[horarios.length - 1]
-                const horarioDisplay = horarios.length > 1
-                  ? `${primeiroHorario} - ${ultimoHorario}`
-                  : primeiroHorario
+            <>
+              <div className="section-header">
+                <h2 className="section-title">
+                  {usuarioProfissional ? 'Seus próximos atendimentos' : 'Próximos agendamentos'}
+                </h2>
+                <button className="section-link" onClick={() => navigate('/agenda')}>
+                  Ver todos
+                </button>
+              </div>
 
-                return (
-                  <div
-                    key={appointment.id}
-                    className="appointment-card"
-                    onClick={() => {
-                      // Se houver múltiplos IDs, usar o primeiro para abrir o modal
-                      setSelectedAgendamentoId(appointment.id)
-                      setShowDetalhesModal(true)
-                    }}
-                  >
-                    <div className="appointment-time">
-                      <span className="appointment-hour">
-                        {horarioDisplay}
-                        {horarios.length > 1 && (
-                          <span className="horarios-count">({horarios.length} horários)</span>
-                        )}
-                      </span>
-                      <span className="appointment-date">{formatDate(appointment.data)}</span>
-                    </div>
-                    <div className="appointment-info">
-                      <h3 className="appointment-client">{appointment.cliente}</h3>
-                      <p className="appointment-service">{appointment.servico}</p>
-                    </div>
-                    <div className="appointment-status">
-                      {getStatusBadge(appointment.status)}
-                    </div>
-                  </div>
-                )
-              })}
-            </div>
+              {proximosAgendamentos.length === 0 ? (
+                <div className="empty-state">
+                  <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                    <line x1="16" y1="2" x2="16" y2="6"></line>
+                    <line x1="8" y1="2" x2="8" y2="6"></line>
+                    <line x1="3" y1="10" x2="21" y2="10"></line>
+                  </svg>
+                  <p>Nenhum agendamento próximo</p>
+                </div>
+              ) : (
+                <div className="appointments-list">
+                  {proximosAgendamentos.map((appointment) => {
+                    const horarios = Array.isArray(appointment.horario) ? appointment.horario : [appointment.horario]
+                    const primeiroHorario = horarios[0]
+                    const ultimoHorario = horarios[horarios.length - 1]
+                    const horarioDisplay = horarios.length > 1 ? `${primeiroHorario} - ${ultimoHorario}` : primeiroHorario
+
+                    return (
+                      <div
+                        key={appointment.id}
+                        className="appointment-card"
+                        onClick={() => {
+                          setSelectedAgendamentoId(appointment.id)
+                          setShowDetalhesModal(true)
+                        }}
+                      >
+                        <div className="appointment-time">
+                          <span className="appointment-hour">
+                            {horarioDisplay}
+                            {horarios.length > 1 && <span className="horarios-count">({horarios.length} horários)</span>}
+                          </span>
+                          <span className="appointment-date">{formatDate(appointment.data)}</span>
+                        </div>
+                        <div className="appointment-info">
+                          <h3 className="appointment-client">{appointment.cliente}</h3>
+                          <p className="appointment-service">{appointment.servico}</p>
+                        </div>
+                        <div className="appointment-status">
+                          {getStatusBadge(appointment.status)}
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              )}
+            </>
           )}
         </section>
 
-        {/* Ações Rápidas */}
         <section className="dashboard-section">
-          <h2 className="section-title">Ações Rápidas</h2>
+          <h2 className="section-title">Ações rápidas</h2>
           <div className="quick-actions">
-            <button
-              className={`quick-action-btn ${acessoExpirado ? 'disabled' : ''}`}
-              onClick={handleNovoClienteClick}
-              title={acessoExpirado ? 'Seu acesso expirou. Você pode apenas visualizar os dados existentes.' : ''}
-            >
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <line x1="12" y1="5" x2="12" y2="19"></line>
-                <line x1="5" y1="12" x2="19" y2="12"></line>
-              </svg>
-              <span>Novo Cliente</span>
-            </button>
-            <button
-              className={`quick-action-btn ${acessoExpirado ? 'disabled' : ''}`}
-              onClick={handleNovoAgendamentoClick}
-              title={acessoExpirado ? 'Seu acesso expirou. Você pode apenas visualizar os dados existentes.' : ''}
-            >
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <line x1="12" y1="5" x2="12" y2="19"></line>
-                <line x1="5" y1="12" x2="19" y2="12"></line>
-              </svg>
-              <span>Novo Agendamento</span>
-            </button>
-            <button
-              className={`quick-action-btn ${acessoExpirado ? 'disabled' : ''}`}
-              onClick={handleVerAgendaClick}
-              title={acessoExpirado ? 'Seu acesso expirou. Você pode apenas visualizar os dados existentes.' : ''}
-            >
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
-                <line x1="16" y1="2" x2="16" y2="6"></line>
-                <line x1="8" y1="2" x2="8" y2="6"></line>
-                <line x1="3" y1="10" x2="21" y2="10"></line>
-              </svg>
-              <span>Ver Agenda</span>
-            </button>
+            {podeGerirCadastros && (
+              <button
+                className={`quick-action-btn ${acessoExpirado ? 'disabled' : ''}`}
+                onClick={handleNovoClienteClick}
+                title={acessoExpirado ? 'Seu acesso expirou. Você pode apenas visualizar os dados existentes.' : ''}
+              >
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <line x1="12" y1="5" x2="12" y2="19"></line>
+                  <line x1="5" y1="12" x2="19" y2="12"></line>
+                </svg>
+                <span>Novo Cliente</span>
+              </button>
+            )}
+            {podeOperarAgenda && (
+              <>
+                <button
+                  className={`quick-action-btn ${acessoExpirado ? 'disabled' : ''}`}
+                  onClick={handleNovoAgendamentoClick}
+                  title={acessoExpirado ? 'Seu acesso expirou. Você pode apenas visualizar os dados existentes.' : ''}
+                >
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <line x1="12" y1="5" x2="12" y2="19"></line>
+                    <line x1="5" y1="12" x2="19" y2="12"></line>
+                  </svg>
+                  <span>Novo Agendamento</span>
+                </button>
+                <button
+                  className={`quick-action-btn ${acessoExpirado ? 'disabled' : ''}`}
+                  onClick={handleVerAgendaClick}
+                  title={acessoExpirado ? 'Seu acesso expirou. Você pode apenas visualizar os dados existentes.' : ''}
+                >
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                    <line x1="16" y1="2" x2="16" y2="6"></line>
+                    <line x1="8" y1="2" x2="8" y2="6"></line>
+                    <line x1="3" y1="10" x2="21" y2="10"></line>
+                  </svg>
+                  <span>{usuarioProfissional ? 'Minha Agenda' : 'Ver Agenda'}</span>
+                </button>
+              </>
+            )}
+            {(usuarioAdmin || usuarioProprietario) && (
+              <button className="quick-action-btn" onClick={() => navigate('/configuracoes')}>
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <circle cx="12" cy="12" r="3"></circle>
+                  <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+                </svg>
+                <span>Configurações</span>
+              </button>
+            )}
             {temWhatsappSuporte && (
               <button
                 className={`quick-action-btn quick-action-btn-suporte ${acessoExpirado ? 'disabled' : ''}`}
@@ -584,7 +717,6 @@ function Dashboard() {
         </section>
       </div>
 
-      {/* Modal de Novo Cliente */}
       <NovoClienteModal
         isOpen={showNovoClienteModal}
         onClose={() => setShowNovoClienteModal(false)}
@@ -593,7 +725,6 @@ function Dashboard() {
         }}
       />
 
-      {/* Modal de Agendamento */}
       <AgendamentoModal
         isOpen={showAgendamentoModal}
         mode={agendamentoModalMode}
@@ -611,7 +742,6 @@ function Dashboard() {
         }}
       />
 
-      {/* Modal de Detalhes do Agendamento */}
       <AgendamentoDetalhesModal
         isOpen={showDetalhesModal}
         agendamentoId={selectedAgendamentoId}
@@ -637,7 +767,6 @@ function Dashboard() {
         }}
       />
 
-      {/* Toast Container */}
       <ToastContainer toasts={toasts} onClose={(id) => setToasts((prev) => prev.filter((t) => t.id !== id))} />
     </div>
   )

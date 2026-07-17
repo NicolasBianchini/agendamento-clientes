@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { clientesService, agendamentosService } from '../services/firestore'
-import { getUserSession, isAccessExpired } from '../services/auth'
+import { getUserSession, isAccessExpired, isAdmin, isAdminMaster } from '../services/auth'
 import NovoClienteModal from '../components/NovoClienteModal'
 import EditarClienteModal from '../components/EditarClienteModal'
 import ToastContainer from '../components/ToastContainer'
@@ -12,6 +12,9 @@ interface Cliente {
   id: string
   nome: string
   telefone: string
+  email: string
+  clienteUserId?: string | null
+  identificador?: string
   observacoes?: string
   dataCadastro: string
   totalAgendamentos: number
@@ -36,6 +39,7 @@ function Clientes() {
 
   const usuario = getUserSession()
   const acessoExpirado = isAccessExpired(usuario)
+  const acessoBloqueado = isAdminMaster(usuario) || usuario?.role === 'admin'
 
   const addToast = (message: string, type: ToastType = 'info') => {
     const id = Date.now().toString()
@@ -59,6 +63,11 @@ function Clientes() {
   }, [searchTerm, sortBy, clientes])
 
   const loadClientes = async () => {
+    if (!isAdmin(usuario) || acessoBloqueado) {
+      setIsLoading(false)
+      return
+    }
+
     setIsLoading(true)
     setError(null)
 
@@ -69,7 +78,9 @@ function Clientes() {
       // Buscar total de agendamentos para cada cliente
       const clientesComAgendamentos = await Promise.all(
         clientesData.map(async (cliente: any) => {
-          const agendamentos = await agendamentosService.getByCliente(cliente.id)
+          const agendamentos = cliente.clienteUserId
+            ? await agendamentosService.getByClienteUserId(cliente.clienteUserId)
+            : await agendamentosService.getByCliente(cliente.id)
           return {
             ...cliente,
             totalAgendamentos: agendamentos.length,
@@ -97,6 +108,7 @@ function Clientes() {
         (cliente) =>
           cliente.nome.toLowerCase().includes(term) ||
           cliente.telefone.replace(/\D/g, '').includes(term.replace(/\D/g, ''))
+          || cliente.email.toLowerCase().includes(term)
       )
     }
 
@@ -130,7 +142,9 @@ function Clientes() {
 
     try {
       // Verificar se tem agendamentos antes de excluir
-      const agendamentos = await agendamentosService.getByCliente(clienteToDelete.id)
+      const agendamentos = clienteToDelete.clienteUserId
+        ? await agendamentosService.getByClienteUserId(clienteToDelete.clienteUserId)
+        : await agendamentosService.getByCliente(clienteToDelete.id)
       if (agendamentos.length > 0) {
         alert(`Este cliente possui ${agendamentos.length} agendamento(s). Não é possível excluir.`)
         setShowDeleteModal(false)
@@ -178,6 +192,14 @@ function Clientes() {
     )
   }
 
+  if (!isAdmin(usuario) || acessoBloqueado) {
+    return (
+      <div className="clientes-error">
+        <p>Este perfil não possui acesso à gestão de clientes.</p>
+      </div>
+    )
+  }
+
   if (error) {
     return (
       <div className="clientes-error">
@@ -213,7 +235,7 @@ function Clientes() {
           <input
             type="text"
             className="search-input"
-            placeholder="Buscar por nome ou telefone..."
+            placeholder="Buscar por nome, email ou telefone..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
           />
@@ -279,6 +301,7 @@ function Clientes() {
                 <div className="cliente-info">
                   <h3 className="cliente-nome">{cliente.nome}</h3>
                   <p className="cliente-telefone">{formatPhone(cliente.telefone)}</p>
+                  <p className="cliente-telefone">{cliente.email}</p>
                 </div>
               </div>
 
@@ -307,6 +330,16 @@ function Clientes() {
                   </svg>
                   <span>{cliente.totalAgendamentos} agendamento(s)</span>
                 </div>
+                {cliente.identificador && (
+                  <div className="meta-item">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <path d="M3 12h18"></path>
+                      <path d="M3 6h18"></path>
+                      <path d="M3 18h18"></path>
+                    </svg>
+                    <span>ID: {cliente.identificador}</span>
+                  </div>
+                )}
               </div>
 
               <div className="cliente-actions">
@@ -400,6 +433,7 @@ function Clientes() {
           id: clienteToEdit.id,
           nome: clienteToEdit.nome,
           telefone: clienteToEdit.telefone,
+          email: clienteToEdit.email,
           observacoes: clienteToEdit.observacoes,
         } : undefined}
         onClose={() => {
@@ -418,4 +452,3 @@ function Clientes() {
 }
 
 export default Clientes
-

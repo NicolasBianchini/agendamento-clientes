@@ -31,6 +31,13 @@ service cloud.firestore {
       allow update: if !request.resource.data.diff(resource.data).affectedKeys().hasAny(['userId']);
       allow delete: if true; // O código verifica userId antes de deletar
     }
+
+    // Regras para a coleção de estabelecimentos
+    // Leitura pública para exibir unidades no autoagendamento e cadastro do cliente.
+    match /estabelecimentos/{estabelecimentoId} {
+      allow read: if true;
+      allow write: if true; // Desenvolvimento
+    }
     
     // Regras para a coleção de agendamentos
     match /agendamentos/{agendamentoId} {
@@ -50,7 +57,31 @@ service cloud.firestore {
       allow update: if !request.resource.data.diff(resource.data).affectedKeys().hasAny(['userId']);
       allow delete: if true; // O código verifica userId antes de deletar
     }
+
+    // Coleções operacionais por profissional
+    match /profissionalServicos/{vinculoId} {
+      allow read: if true;
+      allow create: if request.resource.data.keys().hasAll(['userId']) 
+                    && request.resource.data.userId is string;
+      allow update: if !request.resource.data.diff(resource.data).affectedKeys().hasAny(['userId']);
+      allow delete: if true;
+    }
+
+    match /disponibilidadeProfissional/{disponibilidadeId} {
+      allow read: if true;
+      allow create: if request.resource.data.keys().hasAll(['userId']) 
+                    && request.resource.data.userId is string;
+      allow update: if !request.resource.data.diff(resource.data).affectedKeys().hasAny(['userId']);
+      allow delete: if true;
+    }
+
+    match /bloqueiosProfissional/{bloqueioId} {
+      allow read: if true;
+      allow create: if request.resource.data.keys().hasAll(['userId']) 
+                    && request.resource.data.userId is string;
+      allow update: if !request.resource.data.diff(resource.data).affectedKeys().hasAny(['userId']);
+      allow delete: if true;
+    }
     
   }
 }
-

@@ -1,0 +1,181 @@
+.auto-agendamento-sucesso-page {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 32px 20px;
+  background:
+    radial-gradient(circle at top, rgba(17, 17, 17, 0.08), transparent 32%),
+    #f7f7f5;
+}
+
+.auto-agendamento-sucesso-card {
+  width: min(100%, 720px);
+  padding: 36px;
+  border: 1px solid #e7e2da;
+  border-radius: 32px;
+  background: #ffffff;
+  box-shadow: 0 24px 70px rgba(17, 17, 17, 0.08);
+}
+
+.auto-agendamento-sucesso-eyebrow {
+  display: inline-flex;
+  margin-bottom: 14px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: #6c6256;
+}
+
+.auto-agendamento-sucesso-card h1 {
+  margin: 0;
+  font-size: clamp(2rem, 4vw, 3.1rem);
+  line-height: 0.96;
+  color: #111111;
+}
+
+.auto-agendamento-sucesso-description {
+  margin: 18px 0 0;
+  font-size: 1.02rem;
+  line-height: 1.7;
+  color: #524a41;
+}
+
+.auto-agendamento-sucesso-highlight {
+  margin-top: 28px;
+  padding: 22px 24px;
+  border-radius: 24px;
+  background: #111111;
+  color: #ffffff;
+}
+
+.auto-agendamento-sucesso-highlight strong,
+.auto-agendamento-sucesso-highlight span {
+  display: block;
+}
+
+.auto-agendamento-sucesso-highlight strong {
+  font-size: 1.35rem;
+}
+
+.auto-agendamento-sucesso-highlight span {
+  margin-top: 8px;
+  color: rgba(255, 255, 255, 0.72);
+}
+
+.auto-agendamento-sucesso-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+  margin-top: 22px;
+}
+
+.auto-agendamento-sucesso-calendar {
+  margin-top: 22px;
+  padding: 20px 22px;
+  border: 1px solid #ebe6de;
+  border-radius: 22px;
+  background: #fcfbf8;
+}
+
+.auto-agendamento-sucesso-calendar p {
+  margin: 0 0 14px;
+  font-size: 1rem;
+  font-weight: 700;
+  color: #161616;
+}
+
+.auto-agendamento-sucesso-calendar-actions {
+  display: flex;
+  gap: 12px;
+}
+
+.auto-agendamento-sucesso-grid div {
+  padding: 18px;
+  border: 1px solid #ebe6de;
+  border-radius: 20px;
+  background: #fcfbf8;
+}
+
+.auto-agendamento-sucesso-grid span,
+.auto-agendamento-sucesso-grid strong {
+  display: block;
+}
+
+.auto-agendamento-sucesso-grid span {
+  margin-bottom: 6px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #7b7063;
+}
+
+.auto-agendamento-sucesso-grid strong {
+  color: #161616;
+}
+
+.auto-agendamento-sucesso-actions {
+  display: flex;
+  gap: 12px;
+  margin-top: 28px;
+}
+
+.auto-agendamento-sucesso-primary,
+.auto-agendamento-sucesso-secondary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 54px;
+  padding: 0 22px;
+  border-radius: 999px;
+  text-decoration: none;
+  font-weight: 700;
+  transition: transform 0.18s ease, opacity 0.18s ease;
+}
+
+.auto-agendamento-sucesso-primary {
+  background: #111111;
+  color: #ffffff;
+}
+
+.auto-agendamento-sucesso-secondary {
+  border: 1px solid #d9d1c6;
+  background: #ffffff;
+  color: #111111;
+}
+
+.auto-agendamento-sucesso-primary:hover,
+.auto-agendamento-sucesso-secondary:hover {
+  transform: translateY(-1px);
+}
+
+@media (max-width: 768px) {
+  .auto-agendamento-sucesso-page {
+    padding: 18px 14px;
+    align-items: flex-start;
+  }
+
+  .auto-agendamento-sucesso-card {
+    padding: 24px 20px;
+    border-radius: 24px;
+  }
+
+  .auto-agendamento-sucesso-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .auto-agendamento-sucesso-actions {
+    flex-direction: column;
+  }
+
+  .auto-agendamento-sucesso-calendar-actions {
+    flex-direction: column;
+  }
+
+  .auto-agendamento-sucesso-primary,
+  .auto-agendamento-sucesso-secondary {
+    width: 100%;
+  }
+}

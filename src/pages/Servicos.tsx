@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { servicosService, agendamentosService } from '../services/firestore'
-import { getUserSession, isAccessExpired } from '../services/auth'
+import { getUserSession, isAccessExpired, isAdmin, isAdminMaster } from '../services/auth'
 import NovoServicoModal from '../components/NovoServicoModal'
 import EditarServicoModal from '../components/EditarServicoModal'
 import ToastContainer from '../components/ToastContainer'
@@ -34,6 +34,7 @@ function Servicos() {
 
   const usuario = getUserSession()
   const acessoExpirado = isAccessExpired(usuario)
+  const acessoBloqueado = isAdminMaster(usuario) || usuario?.role === 'admin'
 
   const addToast = (message: string, type: ToastType = 'info') => {
     const id = Date.now().toString()
@@ -57,6 +58,11 @@ function Servicos() {
   }, [statusFilter, sortBy, servicos])
 
   const loadServicos = async () => {
+    if (!isAdmin(usuario) || acessoBloqueado) {
+      setIsLoading(false)
+      return
+    }
+
     setIsLoading(true)
     setError(null)
 
@@ -194,6 +200,14 @@ function Servicos() {
       <div className="servicos-loading">
         <div className="spinner-large"></div>
         <p>Carregando serviços...</p>
+      </div>
+    )
+  }
+
+  if (!isAdmin(usuario) || acessoBloqueado) {
+    return (
+      <div className="servicos-error">
+        <p>Este perfil não possui acesso à gestão de serviços.</p>
       </div>
     )
   }
@@ -425,4 +439,3 @@ function Servicos() {
 }
 
 export default Servicos
-

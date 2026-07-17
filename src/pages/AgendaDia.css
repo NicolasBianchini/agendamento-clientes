@@ -502,6 +502,15 @@
   white-space: nowrap;
 }
 
+.agendamento-meta {
+  font-size: 0.75rem;
+  color: var(--text-secondary, var(--color-gray-medium));
+  margin: 0 0 0.2rem 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .agendamento-horario {
   font-size: 0.75rem;
   color: var(--color-accent);
@@ -677,4 +686,3 @@
     padding: 0.75rem;
   }
 }
-

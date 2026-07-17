@@ -3,6 +3,7 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { ConfiguracoesProvider } from './contexts/ConfiguracoesContext'
 import { TemaProvider } from './components/TemaProvider'
 import Layout from './components/Layout'
+import PortalClienteLayout from './components/PortalClienteLayout'
 import LoadingSpinner from './components/LoadingSpinner'
 
 // Lazy loading de páginas
@@ -17,8 +18,15 @@ const AgendaSemana = lazy(() => import('./pages/AgendaSemana'))
 const AgendaMes = lazy(() => import('./pages/AgendaMes'))
 const Historico = lazy(() => import('./pages/Historico'))
 const Usuarios = lazy(() => import('./pages/Usuarios'))
+const Profissionais = lazy(() => import('./pages/Profissionais'))
 const Configuracoes = lazy(() => import('./pages/Configuracoes'))
+const Estabelecimentos = lazy(() => import('./pages/Estabelecimentos'))
 const RedirectAgenda = lazy(() => import('./components/RedirectAgenda'))
+const PortalClienteInicio = lazy(() => import('./pages/PortalClienteInicio'))
+const PortalClienteAgendamentos = lazy(() => import('./pages/PortalClienteAgendamentos'))
+const PortalClientePerfil = lazy(() => import('./pages/PortalClientePerfil'))
+const AutoAgendamento = lazy(() => import('./pages/AutoAgendamento'))
+const AutoAgendamentoSucesso = lazy(() => import('./pages/AutoAgendamentoSucesso'))
 
 function App() {
   return (
@@ -29,6 +37,8 @@ function App() {
             <Routes>
               <Route path="/login" element={<Login />} />
               <Route path="/" element={<Navigate to="/login" replace />} />
+              <Route path="/agendar" element={<AutoAgendamento />} />
+              <Route path="/agendar/sucesso" element={<AutoAgendamentoSucesso />} />
 
               {/* Rotas autenticadas */}
               <Route element={<Layout />}>
@@ -43,7 +53,15 @@ function App() {
                 <Route path="/agenda/mes" element={<AgendaMes />} />
                 <Route path="/historico" element={<Historico />} />
                 <Route path="/usuarios" element={<Usuarios />} />
+                <Route path="/estabelecimentos" element={<Estabelecimentos />} />
+                <Route path="/profissionais" element={<Profissionais />} />
                 <Route path="/configuracoes" element={<Configuracoes />} />
+              </Route>
+
+              <Route path="/portal" element={<PortalClienteLayout />}>
+                <Route index element={<PortalClienteInicio />} />
+                <Route path="agendamentos" element={<PortalClienteAgendamentos />} />
+                <Route path="perfil" element={<PortalClientePerfil />} />
               </Route>
             </Routes>
           </Suspense>

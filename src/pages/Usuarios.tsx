@@ -1,10 +1,12 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { listarUsuarios, alterarStatusUsuario, renovarAcessoUsuario } from '../services/usuarios'
-import { isAdminMaster, getUserSession, type Usuario, type UserRole } from '../services/auth'
+import { isAdminMaster, isProprietario, getUserSession, type Usuario, type UserRole } from '../services/auth'
+import { estabelecimentosService } from '../services/firestore'
 import { formatarDataParaInput, formatarData } from '../utils/formatacao'
 import NovoUsuarioModal from '../components/NovoUsuarioModal'
 import EditarUsuarioModal from '../components/EditarUsuarioModal'
+import EquipeProfissionalModal from '../components/EquipeProfissionalModal'
 import ConfirmModal from '../components/ConfirmModal'
 import LoadingSpinner from '../components/LoadingSpinner'
 import ToastContainer from '../components/ToastContainer'
@@ -15,12 +17,15 @@ function Usuarios() {
   const navigate = useNavigate()
   const [usuarios, setUsuarios] = useState<Usuario[]>([])
   const [filteredUsuarios, setFilteredUsuarios] = useState<Usuario[]>([])
+  const [estabelecimentosMap, setEstabelecimentosMap] = useState<Record<string, string>>({})
   const [searchTerm, setSearchTerm] = useState('')
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [showNovoUsuarioModal, setShowNovoUsuarioModal] = useState(false)
   const [showEditarUsuarioModal, setShowEditarUsuarioModal] = useState(false)
   const [usuarioToEdit, setUsuarioToEdit] = useState<Usuario | null>(null)
+  const [showEquipeProfissionalModal, setShowEquipeProfissionalModal] = useState(false)
+  const [usuarioProfissionalSelecionado, setUsuarioProfissionalSelecionado] = useState<Usuario | null>(null)
   const [showStatusModal, setShowStatusModal] = useState(false)
   const [usuarioToChangeStatus, setUsuarioToChangeStatus] = useState<Usuario | null>(null)
   const [showRenovarModal, setShowRenovarModal] = useState(false)
@@ -29,16 +34,18 @@ function Usuarios() {
   const [semExpiracaoRenovar, setSemExpiracaoRenovar] = useState(false)
   const [periodoRenovacao, setPeriodoRenovacao] = useState<1 | 3 | 6 | 'manual' | null>(null)
   const [toasts, setToasts] = useState<Array<{ id: string; message: string; type: ToastType }>>([])
+  const usuarioAtual = getUserSession()
+  const usuarioMaster = isAdminMaster(usuarioAtual)
+  const usuarioProprietario = isProprietario(usuarioAtual)
 
   useEffect(() => {
-    // Verificar se é admin master
-    if (!isAdminMaster()) {
+    if (!usuarioMaster && !usuarioProprietario) {
       navigate('/dashboard')
       return
     }
 
     loadUsuarios()
-  }, [navigate])
+  }, [navigate, usuarioMaster, usuarioProprietario])
 
   useEffect(() => {
     filterUsuarios()
@@ -49,8 +56,19 @@ function Usuarios() {
     setError(null)
 
     try {
-      const usuariosData = await listarUsuarios()
+      const [usuariosData, estabelecimentosData] = await Promise.all([
+        listarUsuarios(),
+        estabelecimentosService.getAll(),
+      ])
       setUsuarios(usuariosData)
+      setEstabelecimentosMap(
+        (estabelecimentosData as Array<{ id?: string; nome: string }>).reduce<Record<string, string>>((acc, item) => {
+          if (item.id) {
+            acc[item.id] = item.nome
+          }
+          return acc
+        }, {})
+      )
     } catch (err: any) {
       const errorMessage = err.message || 'Erro ao carregar usuários. Tente novamente.'
       setError(errorMessage)
@@ -84,6 +102,18 @@ function Usuarios() {
   const handleEditUsuario = (usuario: Usuario) => {
     setUsuarioToEdit(usuario)
     setShowEditarUsuarioModal(true)
+  }
+
+  const isProfissionalRow = (usuario: Usuario) => usuario.role === 'profissional'
+
+  const handleOpenUsuario = (usuario: Usuario) => {
+    if (isProfissionalRow(usuario)) {
+      setUsuarioProfissionalSelecionado(usuario)
+      setShowEquipeProfissionalModal(true)
+      return
+    }
+
+    handleEditUsuario(usuario)
   }
 
   const handleStatusChange = (usuario: Usuario) => {
@@ -194,11 +224,18 @@ function Usuarios() {
     loadUsuarios()
   }
 
+  const handleEquipeProfissionalSuccess = () => {
+    addToast('Profissional atualizado com sucesso!', 'success')
+    loadUsuarios()
+  }
+
   const getRoleLabel = (role: UserRole): string => {
     const labels: Record<UserRole, string> = {
       admin_master: 'Admin Master',
+      proprietario: 'Proprietário',
       admin: 'Admin',
-      cliente: 'Profissional',
+      profissional: 'Profissional',
+      cliente: 'Cliente',
     }
     return labels[role]
   }
@@ -206,14 +243,22 @@ function Usuarios() {
   const getRoleBadgeClass = (role: UserRole): string => {
     const classes: Record<UserRole, string> = {
       admin_master: 'role-badge-master',
+      proprietario: 'role-badge-admin',
       admin: 'role-badge-admin',
+      profissional: 'role-badge-cliente',
       cliente: 'role-badge-cliente',
     }
     return classes[role]
   }
 
-  const usuarioAtual = getUserSession()
   const isCurrentUser = (usuario: Usuario) => usuarioAtual?.id === usuario.id
+  const getEstabelecimentoNome = (estabelecimentoId?: string | null) => {
+    if (!estabelecimentoId) {
+      return '-'
+    }
+
+    return estabelecimentosMap[estabelecimentoId] || estabelecimentoId
+  }
 
   const isAcessoExpirado = (usuario: Usuario): boolean => {
     if (!usuario.dataExpiracao) return false
@@ -266,9 +311,11 @@ function Usuarios() {
     <div className="usuarios-container">
       <div className="usuarios-header">
         <div>
-          <h1 className="usuarios-title">Gerenciamento de Usuários</h1>
+          <h1 className="usuarios-title">{usuarioProprietario && !usuarioMaster ? 'Gestão da Equipe' : 'Gerenciamento de Usuários'}</h1>
           <p className="usuarios-subtitle">
-            Crie e gerencie acessos para profissionais (barbeiros, manicures, etc.) e administradores
+            {usuarioMaster
+              ? 'Crie e gerencie acessos para profissionais, clientes e administradores'
+              : 'Visualize sua conta e gerencie a equipe do estabelecimento. Clique no profissional para configurar serviços, horários e bloqueios'}
           </p>
         </div>
         <button
@@ -320,6 +367,7 @@ function Usuarios() {
                   <th>Nome</th>
                   <th>Email</th>
                   <th>CPF</th>
+                  <th>Estabelecimento</th>
                   <th>Role</th>
                   <th>Status</th>
                   <th>Data de Expiração</th>
@@ -330,7 +378,11 @@ function Usuarios() {
               </thead>
               <tbody>
                 {filteredUsuarios.map((usuario) => (
-                  <tr key={usuario.id}>
+                  <tr
+                    key={usuario.id}
+                    className={isProfissionalRow(usuario) ? 'usuario-row-clickable' : undefined}
+                    onClick={isProfissionalRow(usuario) ? () => handleOpenUsuario(usuario) : undefined}
+                  >
                     <td>
                       <div className="user-name">
                         {usuario.nome}
@@ -341,6 +393,7 @@ function Usuarios() {
                     </td>
                     <td>{usuario.email}</td>
                     <td>{usuario.cpf ? usuario.cpf.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4') : '-'}</td>
+                    <td>{getEstabelecimentoNome(usuario.estabelecimentoId)}</td>
                     <td>
                       <span className={`role-badge ${getRoleBadgeClass(usuario.role)}`}>
                         {getRoleLabel(usuario.role)}
@@ -382,8 +435,11 @@ function Usuarios() {
                       <div className="action-buttons">
                         <button
                           className="btn-icon"
-                          onClick={() => handleEditUsuario(usuario)}
-                          title="Editar"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            handleOpenUsuario(usuario)
+                          }}
+                          title={isProfissionalRow(usuario) ? 'Configurar profissional' : 'Editar'}
                         >
                           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                             <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
@@ -427,7 +483,11 @@ function Usuarios() {
             {/* Cards para Mobile */}
             <div className="usuarios-cards mobile-only">
               {filteredUsuarios.map((usuario) => (
-                <div key={usuario.id} className="usuario-card">
+                <div
+                  key={usuario.id}
+                  className={`usuario-card ${isProfissionalRow(usuario) ? 'usuario-card-clickable' : ''}`}
+                  onClick={isProfissionalRow(usuario) ? () => handleOpenUsuario(usuario) : undefined}
+                >
                   <div className="usuario-card-header">
                     <div className="usuario-card-name">
                       <h3>{usuario.nome}</h3>
@@ -438,8 +498,11 @@ function Usuarios() {
                     <div className="usuario-card-actions">
                       <button
                         className="btn-icon"
-                        onClick={() => handleEditUsuario(usuario)}
-                        title="Editar"
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          handleOpenUsuario(usuario)
+                        }}
+                        title={isProfissionalRow(usuario) ? 'Configurar profissional' : 'Editar'}
                       >
                         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                           <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
@@ -467,6 +530,11 @@ function Usuarios() {
                       <span className={`role-badge ${getRoleBadgeClass(usuario.role)}`}>
                         {getRoleLabel(usuario.role)}
                       </span>
+                    </div>
+
+                    <div className="usuario-card-field">
+                      <span className="field-label">Estabelecimento:</span>
+                      <span className="field-value">{getEstabelecimentoNome(usuario.estabelecimentoId)}</span>
                     </div>
 
                     <div className="usuario-card-field">
@@ -553,14 +621,26 @@ function Usuarios() {
       )}
 
       {showEditarUsuarioModal && usuarioToEdit && (
-        <EditarUsuarioModal
-          isOpen={showEditarUsuarioModal}
-          onClose={() => {
-            setShowEditarUsuarioModal(false)
-            setUsuarioToEdit(null)
+      <EditarUsuarioModal
+        isOpen={showEditarUsuarioModal}
+        onClose={() => {
+          setShowEditarUsuarioModal(false)
+          setUsuarioToEdit(null)
           }}
           onSuccess={handleEditarUsuarioSuccess}
           usuario={usuarioToEdit}
+        />
+      )}
+
+      {usuarioProfissionalSelecionado && (
+        <EquipeProfissionalModal
+          isOpen={showEquipeProfissionalModal}
+          onClose={() => {
+            setShowEquipeProfissionalModal(false)
+            setUsuarioProfissionalSelecionado(null)
+          }}
+          onSuccess={handleEquipeProfissionalSuccess}
+          usuario={usuarioProfissionalSelecionado}
         />
       )}
 

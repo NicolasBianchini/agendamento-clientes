@@ -12,8 +12,9 @@ interface NovoClienteModalProps {
 function NovoClienteModal({ isOpen, onClose, onSuccess }: NovoClienteModalProps) {
   const [nome, setNome] = useState('')
   const [telefone, setTelefone] = useState('')
+  const [email, setEmail] = useState('')
   const [observacoes, setObservacoes] = useState('')
-  const [errors, setErrors] = useState<{ nome?: string; telefone?: string }>({})
+  const [errors, setErrors] = useState<{ nome?: string; telefone?: string; email?: string }>({})
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [showSuccess, setShowSuccess] = useState(false)
 
@@ -62,6 +63,17 @@ function NovoClienteModal({ isOpen, onClose, onSuccess }: NovoClienteModalProps)
     return undefined
   }
 
+  const validateEmail = (value: string): string | undefined => {
+    if (!value.trim()) {
+      return 'Email é obrigatório'
+    }
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+    if (!emailRegex.test(value)) {
+      return 'Email inválido'
+    }
+    return undefined
+  }
+
   const handleNomeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value
     setNome(value)
@@ -85,6 +97,15 @@ function NovoClienteModal({ isOpen, onClose, onSuccess }: NovoClienteModalProps)
     }
   }
 
+  const handleEmailChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value
+    setEmail(value)
+    if (errors.email || value.trim()) {
+      const error = validateEmail(value)
+      setErrors({ ...errors, email: error })
+    }
+  }
+
   const handleObservacoesChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     setObservacoes(e.target.value)
   }
@@ -92,14 +113,16 @@ function NovoClienteModal({ isOpen, onClose, onSuccess }: NovoClienteModalProps)
   const validateForm = (): boolean => {
     const nomeError = validateNome(nome)
     const telefoneError = validateTelefone(telefone)
+    const emailError = validateEmail(email)
     
     const newErrors = {
       nome: nomeError,
       telefone: telefoneError,
+      email: emailError,
     }
     
     setErrors(newErrors)
-    return !nomeError && !telefoneError
+    return !nomeError && !telefoneError && !emailError
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -117,6 +140,7 @@ function NovoClienteModal({ isOpen, onClose, onSuccess }: NovoClienteModalProps)
       await clientesService.create({
         nome: nome.trim(),
         telefone: telefoneNumbers,
+        email: email.trim().toLowerCase(),
         observacoes: observacoes.trim() || null,
         dataCadastro: new Date().toISOString(),
       })
@@ -142,6 +166,7 @@ function NovoClienteModal({ isOpen, onClose, onSuccess }: NovoClienteModalProps)
   const resetForm = () => {
     setNome('')
     setTelefone('')
+    setEmail('')
     setObservacoes('')
     setErrors({})
     setIsSubmitting(false)
@@ -155,7 +180,13 @@ function NovoClienteModal({ isOpen, onClose, onSuccess }: NovoClienteModalProps)
     }
   }
 
-  const isFormValid = nome.trim() && telefone.replace(/\D/g, '').length >= 10 && !errors.nome && !errors.telefone
+  const isFormValid =
+    nome.trim() &&
+    telefone.replace(/\D/g, '').length >= 10 &&
+    email.trim() &&
+    !errors.nome &&
+    !errors.telefone &&
+    !errors.email
 
   const modalRef = useKeyboardNavigation(isOpen, handleClose, {
     closeOnEscape: true,
@@ -233,6 +264,25 @@ function NovoClienteModal({ isOpen, onClose, onSuccess }: NovoClienteModalProps)
           </div>
 
           <div className="form-group">
+            <label htmlFor="email-modal" className="form-label">
+              Email <span className="required">*</span>
+            </label>
+            <input
+              type="email"
+              id="email-modal"
+              className={`form-input ${errors.email ? 'input-error' : ''}`}
+              placeholder="cliente@email.com"
+              value={email}
+              onChange={handleEmailChange}
+              disabled={isSubmitting}
+              autoComplete="email"
+            />
+            {errors.email && (
+              <span className="error-message">{errors.email}</span>
+            )}
+          </div>
+
+          <div className="form-group">
             <label htmlFor="observacoes-modal" className="form-label">
               Observações
             </label>
@@ -284,4 +334,3 @@ function NovoClienteModal({ isOpen, onClose, onSuccess }: NovoClienteModalProps)
 }
 
 export default NovoClienteModal
-

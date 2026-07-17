@@ -1,10 +1,14 @@
 import { useState, useEffect } from 'react'
 import { configuracoesService } from '../services/firestore'
 import type { ConfiguracoesUsuario } from '../types/configuracoes'
-import { getUserSession, isAdminMaster } from '../services/auth'
+import { getUserSession, isAdmin, isAdminMaster, isProfissional, isProprietario } from '../services/auth'
 import './Configuracoes.css'
 
 function Configuracoes() {
+  const usuario = getUserSession()
+  const usuarioProfissional = isProfissional(usuario)
+  const usuarioProprietario = isProprietario(usuario)
+  const usuarioOperacional = usuarioProfissional || usuarioProprietario
   const [config, setConfig] = useState<ConfiguracoesUsuario | null>(null)
   const [originalConfig, setOriginalConfig] = useState<ConfiguracoesUsuario | null>(null)
   const [loading, setLoading] = useState(true)
@@ -18,6 +22,12 @@ function Configuracoes() {
   }, [])
 
   const loadConfiguracoes = async () => {
+    const usuarioAtual = getUserSession()
+    if (!isAdmin(usuarioAtual) && !isProfissional(usuarioAtual)) {
+      setLoading(false)
+      return
+    }
+
     try {
       setLoading(true)
       const configuracoes = await configuracoesService.getComPadroes()
@@ -100,6 +110,16 @@ function Configuracoes() {
   }
 
   if (!config) {
+    if (!isAdmin(usuario) && !isProfissional(usuario)) {
+      return (
+        <div className="configuracoes-page">
+          <div className="error-container">
+            <p>Somente usuários internos podem editar as configurações.</p>
+          </div>
+        </div>
+      )
+    }
+
     return (
       <div className="configuracoes-page">
         <div className="error-container">
@@ -112,15 +132,17 @@ function Configuracoes() {
     )
   }
 
-  const usuario = getUserSession()
-
   return (
     <div className="configuracoes-page">
       <div className="configuracoes-header">
         <div className="header-content">
           <div>
             <h1>Configurações</h1>
-            <p className="subtitle">Personalize seu sistema de acordo com suas preferências</p>
+            <p className="subtitle">
+              {usuarioOperacional
+                ? 'Ajuste suas preferências visuais, intervalo da agenda e comportamento da sua conta.'
+                : 'Personalize seu sistema de acordo com suas preferências'}
+            </p>
           </div>
           {!loading && (
             <button
@@ -168,7 +190,7 @@ function Configuracoes() {
               <circle cx="12" cy="12" r="10"></circle>
               <polyline points="12 6 12 12 16 14"></polyline>
             </svg>
-            Horários de Funcionamento
+            {usuarioOperacional ? 'Agenda Pessoal' : 'Horários de Funcionamento'}
           </h2>
           <div className="config-grid">
             <div className="config-field">
@@ -178,8 +200,11 @@ function Configuracoes() {
                 id="horarioInicial"
                 value={config.horarioInicial}
                 onChange={(e) => handleChange('horarioInicial', e.target.value)}
+                disabled={usuarioOperacional}
               />
-              <span className="field-help">Primeiro horário disponível para agendamento</span>
+              <span className="field-help">
+                {usuarioOperacional ? 'Esse horário acompanha sua disponibilidade cadastrada na agenda.' : 'Primeiro horário disponível para agendamento'}
+              </span>
             </div>
 
             <div className="config-field">
@@ -189,8 +214,11 @@ function Configuracoes() {
                 id="horarioFinal"
                 value={config.horarioFinal}
                 onChange={(e) => handleChange('horarioFinal', e.target.value)}
+                disabled={usuarioOperacional}
               />
-              <span className="field-help">Último horário disponível para agendamento</span>
+              <span className="field-help">
+                {usuarioOperacional ? 'Esse horário acompanha sua disponibilidade cadastrada na agenda.' : 'Último horário disponível para agendamento'}
+              </span>
             </div>
 
             <div className="config-field">
@@ -206,12 +234,13 @@ function Configuracoes() {
                 <option value={90}>1 hora e 30 minutos</option>
                 <option value={120}>2 horas</option>
               </select>
-              <span className="field-help">Intervalo entre os horários disponíveis</span>
+              <span className="field-help">
+                {usuarioOperacional ? 'Intervalo padrão entre slots exibidos para você na agenda' : 'Intervalo entre os horários disponíveis'}
+              </span>
             </div>
           </div>
         </section>
 
-        {/* Seção: Visualização */}
         <section className="config-section">
           <h2 className="section-title">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -370,8 +399,170 @@ function Configuracoes() {
           </div>
         </section>
 
+        {!usuarioOperacional && (
+          <section className="config-section">
+            <h2 className="section-title">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M9 12l2 2 4-4"></path>
+                <path d="M21 12c0 4.97-4.03 9-9 9S3 16.97 3 12 7.03 3 12 3s9 4.03 9 9z"></path>
+              </svg>
+              Regras do Cliente
+            </h2>
+            <div className="config-grid">
+              <div className="config-field checkbox-field">
+                <label className="checkbox-label">
+                  <input
+                    type="checkbox"
+                    checked={config.permiteCancelamentoCliente}
+                    onChange={(e) => handleChange('permiteCancelamentoCliente', e.target.checked)}
+                  />
+                  <span>Permitir cancelamento pelo cliente</span>
+                </label>
+              </div>
+              <div className="config-field checkbox-field">
+                <label className="checkbox-label">
+                  <input
+                    type="checkbox"
+                    checked={config.permiteRemarcacaoCliente}
+                    onChange={(e) => handleChange('permiteRemarcacaoCliente', e.target.checked)}
+                  />
+                  <span>Permitir remarcação pelo cliente</span>
+                </label>
+              </div>
+              <div className="config-field">
+                <label htmlFor="antecedenciaCancelamentoHoras">Antecedência para cancelamento</label>
+                <input
+                  type="number"
+                  id="antecedenciaCancelamentoHoras"
+                  min={0}
+                  value={config.antecedenciaCancelamentoHoras}
+                  onChange={(e) => handleChange('antecedenciaCancelamentoHoras', Number(e.target.value))}
+                />
+                <span className="field-help">Horas mínimas antes do atendimento para permitir cancelamento.</span>
+              </div>
+              <div className="config-field">
+                <label htmlFor="antecedenciaRemarcacaoHoras">Antecedência para remarcação</label>
+                <input
+                  type="number"
+                  id="antecedenciaRemarcacaoHoras"
+                  min={0}
+                  value={config.antecedenciaRemarcacaoHoras}
+                  onChange={(e) => handleChange('antecedenciaRemarcacaoHoras', Number(e.target.value))}
+                />
+                <span className="field-help">Horas mínimas antes do atendimento para permitir remarcação.</span>
+              </div>
+            </div>
+          </section>
+        )}
+
+        {!usuarioOperacional && (
+          <>
+            <section className="config-section">
+              <h2 className="section-title">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"></path>
+                </svg>
+                WhatsApp
+              </h2>
+              <div className="config-grid">
+                <div className="config-field checkbox-field">
+                  <label className="checkbox-label">
+                    <input
+                      type="checkbox"
+                      checked={config.whatsappNotificacoesAtivo || false}
+                      onChange={(e) => handleChange('whatsappNotificacoesAtivo', e.target.checked)}
+                    />
+                    <span>Ativar templates de WhatsApp</span>
+                  </label>
+                  <span className="field-help">Habilita confirmações, lembretes e cancelamentos com mensagem padronizada.</span>
+                </div>
+
+                <div className="config-field">
+                  <label htmlFor="whatsappTemplateConfirmacao">Template de confirmação</label>
+                  <textarea
+                    id="whatsappTemplateConfirmacao"
+                    value={config.whatsappTemplateConfirmacao || ''}
+                    onChange={(e) => handleChange('whatsappTemplateConfirmacao', e.target.value)}
+                    rows={4}
+                  />
+                  <span className="field-help">Use tokens como {'{clienteNome}'}, {'{servicoNome}'}, {'{data}'}, {'{horario}'}, {'{profissionalNome}'}.</span>
+                </div>
+
+                <div className="config-field">
+                  <label htmlFor="whatsappTemplateLembrete">Template de lembrete</label>
+                  <textarea
+                    id="whatsappTemplateLembrete"
+                    value={config.whatsappTemplateLembrete || ''}
+                    onChange={(e) => handleChange('whatsappTemplateLembrete', e.target.value)}
+                    rows={4}
+                  />
+                </div>
+
+                <div className="config-field">
+                  <label htmlFor="whatsappTemplateCancelamento">Template de cancelamento/remarcação</label>
+                  <textarea
+                    id="whatsappTemplateCancelamento"
+                    value={config.whatsappTemplateCancelamento || ''}
+                    onChange={(e) => handleChange('whatsappTemplateCancelamento', e.target.value)}
+                    rows={4}
+                  />
+                </div>
+
+                <div className="config-field">
+                  <label htmlFor="backendNotificacoesUrl">Endpoint seguro de notificações</label>
+                  <input
+                    type="url"
+                    id="backendNotificacoesUrl"
+                    value={config.backendNotificacoesUrl || ''}
+                    onChange={(e) => handleChange('backendNotificacoesUrl', e.target.value)}
+                    placeholder="https://sua-funcao.exemplo/sendAppointmentNotification"
+                  />
+                  <span className="field-help">Use este endpoint para mover o disparo real para backend seguro, sem expor token no navegador.</span>
+                </div>
+              </div>
+            </section>
+
+            <section className="config-section">
+              <h2 className="section-title">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                  <line x1="16" y1="2" x2="16" y2="6"></line>
+                  <line x1="8" y1="2" x2="8" y2="6"></line>
+                  <line x1="3" y1="10" x2="21" y2="10"></line>
+                </svg>
+                Calendário
+              </h2>
+              <div className="config-grid">
+                <div className="config-field checkbox-field">
+                  <label className="checkbox-label">
+                    <input
+                      type="checkbox"
+                      checked={config.calendarioIntegrado || false}
+                      onChange={(e) => handleChange('calendarioIntegrado', e.target.checked)}
+                    />
+                    <span>Ativar integração de calendário</span>
+                  </label>
+                  <span className="field-help">Exibe links para Google Calendar e arquivo .ics compatível com Apple Calendar.</span>
+                </div>
+
+                <div className="config-field">
+                  <label htmlFor="calendarioTitulo">Título padrão do evento</label>
+                  <input
+                    type="text"
+                    id="calendarioTitulo"
+                    value={config.calendarioTitulo || ''}
+                    onChange={(e) => handleChange('calendarioTitulo', e.target.value)}
+                    placeholder="Agendamento - {servicoNome}"
+                  />
+                  <span className="field-help">Use tokens como {'{servicoNome}'}, {'{clienteNome}'} e {'{profissionalNome}'}.</span>
+                </div>
+              </div>
+            </section>
+          </>
+        )}
+
         {/* Seção: Suporte */}
-        {isAdminMaster(usuario) && (
+        {isAdminMaster(usuario) && !usuarioOperacional && (
           <section className="config-section">
             <h2 className="section-title">
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">

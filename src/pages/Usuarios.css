@@ -97,6 +97,14 @@
   background: var(--bg-tertiary);
 }
 
+.usuarios-table tbody tr.usuario-row-clickable {
+  cursor: pointer;
+}
+
+.usuarios-table tbody tr.usuario-row-clickable:hover {
+  background: #fffaf0;
+}
+
 .usuarios-table tbody tr:last-child {
   border-bottom: none;
 }
@@ -464,6 +472,15 @@
 .usuario-card:hover {
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
   transform: translateY(-2px);
+}
+
+.usuario-card-clickable {
+  cursor: pointer;
+}
+
+.usuario-card-clickable:hover {
+  border-color: rgba(217, 119, 6, 0.25);
+  box-shadow: 0 12px 28px rgba(217, 119, 6, 0.08);
 }
 
 .usuario-card:last-child {

@@ -7,10 +7,9 @@ import {
   updateDoc,
   query,
   where,
-  orderBy,
 } from 'firebase/firestore'
 import { db } from '../config/firebase'
-import { getUserSession, isAdminMaster, type Usuario, type UserRole } from './auth'
+import { getUserSession, isAdmin, isAdminMaster, isInternalUser, isProprietario, type Usuario, type UserRole } from './auth'
 
 async function hashPassword(password: string): Promise<string> {
   const encoder = new TextEncoder()
@@ -20,11 +19,53 @@ async function hashPassword(password: string): Promise<string> {
   return hashArray.map(b => b.toString(16).padStart(2, '0')).join('')
 }
 
-function checkAdminMaster(): void {
+function getUserManagementContext(): Usuario {
   const usuario = getUserSession()
-  if (!isAdminMaster(usuario)) {
-    throw new Error('Acesso negado. Apenas administradores master podem gerenciar usuários.')
+
+  if (!usuario) {
+    throw new Error('Usuário não autenticado.')
   }
+
+  if (isAdminMaster(usuario)) {
+    return usuario
+  }
+
+  if (isProprietario(usuario) && usuario.estabelecimentoId) {
+    return usuario
+  }
+
+  throw new Error('Acesso negado. Você não tem permissão para gerenciar usuários.')
+}
+
+function canManageRole(usuario: Usuario, role: UserRole): boolean {
+  if (isAdminMaster(usuario)) {
+    return true
+  }
+
+  if (isProprietario(usuario)) {
+    return role === 'profissional'
+  }
+
+  return false
+}
+
+function canManageTargetUser(usuario: Usuario, target: Record<string, any>): boolean {
+  if (isAdminMaster(usuario)) {
+    return true
+  }
+
+  if (isProprietario(usuario)) {
+    if (target.id === usuario.id) {
+      return true
+    }
+
+    return (
+      target.estabelecimentoId === usuario.estabelecimentoId &&
+      target.role === 'profissional'
+    )
+  }
+
+  return false
 }
 
 export interface NovoUsuario {
@@ -32,8 +73,10 @@ export interface NovoUsuario {
   email: string
   cpf: string
   senha: string
+  whatsapp?: string | null
   role: UserRole
   ativo: boolean
+  estabelecimentoId?: string | null
   dataExpiracao: string | null
 }
 
@@ -42,29 +85,33 @@ export interface UsuarioCompleto extends Usuario {
 }
 
 export async function listarUsuarios(): Promise<Usuario[]> {
-  checkAdminMaster()
+  const usuario = getUserManagementContext()
 
   try {
-    const q = query(
-      collection(db, 'usuarios'),
-      orderBy('dataCriacao', 'desc')
-    )
+    const q = isAdminMaster(usuario)
+      ? query(collection(db, 'usuarios'))
+      : query(collection(db, 'usuarios'), where('estabelecimentoId', '==', usuario.estabelecimentoId))
     const querySnapshot = await getDocs(q)
 
-    return querySnapshot.docs.map((doc) => {
-      const data = doc.data()
-      return {
-        id: doc.id,
-        nome: data.nome,
-        email: data.email,
-        cpf: data.cpf || '',
-        ativo: data.ativo,
-        role: data.role || 'cliente',
-        dataCriacao: data.dataCriacao,
-        ultimoAcesso: data.ultimoAcesso || null,
-        dataExpiracao: data.dataExpiracao || null,
-      } as Usuario
-    })
+    return querySnapshot.docs
+      .map((doc) => {
+        const data = doc.data()
+        return {
+          id: doc.id,
+          nome: data.nome,
+          email: data.email,
+          cpf: data.cpf || '',
+          whatsapp: data.whatsapp || null,
+          ativo: data.ativo,
+          role: data.role || 'cliente',
+          estabelecimentoId: data.estabelecimentoId || null,
+          dataCriacao: data.dataCriacao,
+          ultimoAcesso: data.ultimoAcesso || null,
+          dataExpiracao: data.dataExpiracao || null,
+        } as Usuario
+      })
+      .filter((item) => isAdminMaster(usuario) || canManageTargetUser(usuario, item))
+      .sort((a, b) => String(b.dataCriacao || '').localeCompare(String(a.dataCriacao || '')))
   } catch (error) {
     console.error('Erro ao listar usuários:', error)
     throw new Error('Erro ao listar usuários')
@@ -72,7 +119,7 @@ export async function listarUsuarios(): Promise<Usuario[]> {
 }
 
 export async function buscarUsuarioPorId(userId: string): Promise<Usuario | null> {
-  checkAdminMaster()
+  const usuario = getUserManagementContext()
 
   try {
     const docRef = doc(db, 'usuarios', userId)
@@ -83,13 +130,18 @@ export async function buscarUsuarioPorId(userId: string): Promise<Usuario | null
     }
 
     const data = docSnap.data()
+    if (!canManageTargetUser(usuario, data) && !isAdminMaster(usuario)) {
+      throw new Error('Acesso negado.')
+    }
     return {
       id: docSnap.id,
       nome: data.nome,
       email: data.email,
       cpf: data.cpf || '',
+      whatsapp: data.whatsapp || null,
       ativo: data.ativo,
       role: data.role || 'cliente',
+      estabelecimentoId: data.estabelecimentoId || null,
       dataCriacao: data.dataCriacao,
       ultimoAcesso: data.ultimoAcesso || null,
       dataExpiracao: data.dataExpiracao || null,
@@ -101,7 +153,7 @@ export async function buscarUsuarioPorId(userId: string): Promise<Usuario | null
 }
 
 export async function emailExiste(email: string): Promise<boolean> {
-  checkAdminMaster()
+  const usuario = getUserManagementContext()
 
   try {
     const emailNormalized = email.toLowerCase().trim()
@@ -110,7 +162,11 @@ export async function emailExiste(email: string): Promise<boolean> {
       where('email', '==', emailNormalized)
     )
     const querySnapshot = await getDocs(q)
-    return !querySnapshot.empty
+    if (isAdminMaster(usuario)) {
+      return !querySnapshot.empty
+    }
+
+    return querySnapshot.docs.some((doc) => canManageTargetUser(usuario, doc.data()))
   } catch (error) {
     console.error('Erro ao verificar email:', error)
     return false
@@ -118,7 +174,7 @@ export async function emailExiste(email: string): Promise<boolean> {
 }
 
 export async function criarUsuario(dados: NovoUsuario): Promise<string> {
-  checkAdminMaster()
+  const usuario = getUserManagementContext()
 
   if (!dados.nome || !dados.nome.trim()) {
     throw new Error('Nome é obrigatório')
@@ -146,6 +202,10 @@ export async function criarUsuario(dados: NovoUsuario): Promise<string> {
     throw new Error('Senha deve ter no mínimo 6 caracteres')
   }
 
+  if (!canManageRole(usuario, dados.role)) {
+    throw new Error('Você não tem permissão para criar este tipo de usuário.')
+  }
+
   const existe = await emailExiste(dados.email)
   if (existe) {
     throw new Error('Este email já está cadastrado')
@@ -153,14 +213,19 @@ export async function criarUsuario(dados: NovoUsuario): Promise<string> {
 
   try {
     const senhaHash = await hashPassword(dados.senha)
+    const estabelecimentoId = isProprietario(usuario)
+      ? usuario.estabelecimentoId || null
+      : dados.estabelecimentoId || null
 
     const userData = {
       nome: dados.nome.trim(),
       email: dados.email.toLowerCase().trim(),
       cpf: dados.cpf.replace(/\D/g, ''),
+      whatsapp: dados.whatsapp ? dados.whatsapp.replace(/\D/g, '') : null,
       senhaHash: senhaHash,
       role: dados.role || 'cliente',
       ativo: dados.ativo !== undefined ? dados.ativo : true,
+      estabelecimentoId,
       dataCriacao: new Date().toISOString(),
       ultimoAcesso: null,
       dataExpiracao: dados.dataExpiracao || null,
@@ -179,9 +244,15 @@ export async function criarUsuario(dados: NovoUsuario): Promise<string> {
 
 export async function atualizarUsuario(
   userId: string,
-  dados: Partial<Omit<NovoUsuario, 'senha'> & { senha?: string; cpf?: string }>
+  dados: Partial<
+    Omit<NovoUsuario, 'senha'> & {
+      senha?: string
+      cpf?: string
+      whatsapp?: string | null
+    }
+  >
 ): Promise<void> {
-  checkAdminMaster()
+  const usuario = getUserManagementContext()
 
   try {
     const docRef = doc(db, 'usuarios', userId)
@@ -189,6 +260,11 @@ export async function atualizarUsuario(
 
     if (!docSnap.exists()) {
       throw new Error('Usuário não encontrado')
+    }
+
+    const currentData = docSnap.data()
+    if (!canManageTargetUser(usuario, currentData) && !isAdminMaster(usuario)) {
+      throw new Error('Você não tem permissão para editar este usuário.')
     }
 
     const updateData: any = {}
@@ -203,6 +279,14 @@ export async function atualizarUsuario(
         throw new Error('CPF inválido')
       }
       updateData.cpf = cpfNumeros
+    }
+
+    if (dados.whatsapp !== undefined) {
+      const whatsappNumeros = String(dados.whatsapp || '').replace(/\D/g, '')
+      if (whatsappNumeros && whatsappNumeros.length < 10) {
+        throw new Error('WhatsApp deve ter DDD e número válidos')
+      }
+      updateData.whatsapp = whatsappNumeros || null
     }
 
     if (dados.email !== undefined) {
@@ -229,7 +313,22 @@ export async function atualizarUsuario(
     }
 
     if (dados.role !== undefined) {
+      const mantendoProprioPapel =
+        isProprietario(usuario) &&
+        currentData.id === usuario.id &&
+        currentData.role === 'proprietario' &&
+        dados.role === 'proprietario'
+
+      if (!canManageRole(usuario, dados.role) && !mantendoProprioPapel) {
+        throw new Error('Você não tem permissão para definir este tipo de usuário.')
+      }
       updateData.role = dados.role
+    }
+
+    if (dados.estabelecimentoId !== undefined) {
+      updateData.estabelecimentoId = isProprietario(usuario)
+        ? usuario.estabelecimentoId || null
+        : dados.estabelecimentoId || null
     }
 
     if (dados.ativo !== undefined) {
@@ -257,8 +356,64 @@ export async function atualizarUsuario(
   }
 }
 
+export async function listarProfissionaisDisponiveis(estabelecimentoId?: string | null): Promise<Usuario[]> {
+  const usuario = getUserSession()
+  const podeListar = usuario && isInternalUser(usuario) && (isAdmin(usuario) || usuario.role === 'profissional')
+
+  if (!podeListar) {
+    throw new Error('Acesso negado.')
+  }
+
+  try {
+    const q = query(
+      collection(db, 'usuarios'),
+      where('ativo', '==', true)
+    )
+    const querySnapshot = await getDocs(q)
+
+    return querySnapshot.docs
+      .map((doc) => {
+        const data = doc.data()
+        return {
+          id: doc.id,
+          nome: data.nome,
+          email: data.email,
+          cpf: data.cpf || '',
+          whatsapp: data.whatsapp || null,
+          ativo: data.ativo,
+          role: data.role || 'cliente',
+          estabelecimentoId: data.estabelecimentoId || null,
+          dataCriacao: data.dataCriacao,
+          ultimoAcesso: data.ultimoAcesso || null,
+          dataExpiracao: data.dataExpiracao || null,
+        } as Usuario
+      })
+      .filter((item) => {
+        const isLegacyProfessional = item.role === 'cliente'
+        const isProfessional =
+          item.role === 'profissional' ||
+          item.role === 'proprietario' ||
+          isLegacyProfessional
+
+        if (!isProfessional) {
+          return false
+        }
+
+        if (!estabelecimentoId) {
+          return true
+        }
+
+        return item.estabelecimentoId === estabelecimentoId
+      })
+      .sort((a, b) => a.nome.localeCompare(b.nome))
+  } catch (error) {
+    console.error('Erro ao listar profissionais:', error)
+    throw new Error('Erro ao listar profissionais')
+  }
+}
+
 export async function alterarStatusUsuario(userId: string, ativo: boolean): Promise<void> {
-  checkAdminMaster()
+  const usuarioGestor = getUserManagementContext()
 
   try {
     const docRef = doc(db, 'usuarios', userId)
@@ -266,6 +421,10 @@ export async function alterarStatusUsuario(userId: string, ativo: boolean): Prom
 
     if (!docSnap.exists()) {
       throw new Error('Usuário não encontrado')
+    }
+
+    if (!canManageTargetUser(usuarioGestor, docSnap.data()) && !isAdminMaster(usuarioGestor)) {
+      throw new Error('Você não tem permissão para alterar este usuário.')
     }
 
     const usuarioAtual = getUserSession()
@@ -284,7 +443,7 @@ export async function alterarStatusUsuario(userId: string, ativo: boolean): Prom
 }
 
 export async function renovarAcessoUsuario(userId: string, novaDataExpiracao: string | null): Promise<void> {
-  checkAdminMaster()
+  const usuario = getUserManagementContext()
 
   try {
     const docRef = doc(db, 'usuarios', userId)
@@ -292,6 +451,10 @@ export async function renovarAcessoUsuario(userId: string, novaDataExpiracao: st
 
     if (!docSnap.exists()) {
       throw new Error('Usuário não encontrado')
+    }
+
+    if (!canManageTargetUser(usuario, docSnap.data()) && !isAdminMaster(usuario)) {
+      throw new Error('Você não tem permissão para renovar o acesso deste usuário.')
     }
 
     await updateDoc(docRef, { dataExpiracao: novaDataExpiracao })

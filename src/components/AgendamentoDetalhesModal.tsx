@@ -1,10 +1,11 @@
 import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { agendamentosService, clientesService, servicosService } from '../services/firestore'
+import { agendamentosService, clientesService, servicosService, estabelecimentosService } from '../services/firestore'
 import { useConfiguracoes } from '../hooks/useConfiguracoes'
 import { formatarMoeda } from '../utils/formatacao'
 import { useKeyboardNavigation } from '../hooks/useKeyboardNavigation'
 import { getUserSession, isAccessExpired } from '../services/auth'
+import { buildCalendarAssociation, buildWhatsAppLink, buildWhatsAppMessage } from '../services/agendamentoIntegracoes'
 import './AgendamentoDetalhesModal.css'
 
 interface AgendamentoDetalhes {
@@ -12,14 +13,21 @@ interface AgendamentoDetalhes {
   ids?: string[] // IDs de agendamentos relacionados (mesmo cliente, serviço e data)
   clienteId: string
   clienteNome: string
+  clienteTelefone?: string | null
+  clienteEmail?: string | null
   servicoId: string
   servicoNome: string
   servicoValor: number
+  estabelecimentoId?: string | null
+  estabelecimentoNome?: string | null
+  profissionalId?: string | null
+  profissionalNome?: string | null
   data: string // YYYY-MM-DD
   horario: string | string[] // HH:MM ou array de horários
   status: 'agendado' | 'concluido' | 'cancelado'
   observacoes?: string
   formaPagamento?: 'cartao' | 'dinheiro' | 'pix' | null
+  calendarEvent?: any
 }
 
 interface AgendamentoDetalhesModalProps {
@@ -40,6 +48,9 @@ function AgendamentoDetalhesModal({
   onStatusChange,
 }: AgendamentoDetalhesModalProps) {
   const { config } = useConfiguracoes()
+  const effectiveConfig = config ?? {
+    intervaloMinutos: 30,
+  }
   const navigate = useNavigate()
   const usuario = getUserSession()
   const acessoExpirado = isAccessExpired(usuario)
@@ -94,10 +105,11 @@ function AgendamentoDetalhesModal({
         return
       }
 
-      const [cliente, servico] = await Promise.all([
+      const [cliente, servico, estabelecimento] = await Promise.all([
         agendamentoData.clienteId ? clientesService.getById(agendamentoData.clienteId) : null,
         agendamentoData.servicoId ? servicosService.getById(agendamentoData.servicoId) : null,
-      ])
+        agendamentoData.estabelecimentoId ? estabelecimentosService.getById(agendamentoData.estabelecimentoId) : null,
+      ]) as [any, any, { id: string; nome?: string } | null]
 
 
       let agDate: string
@@ -251,14 +263,21 @@ function AgendamentoDetalhesModal({
         ids: idsFinais.length > 1 ? idsFinais : (idsFinais.length === 1 ? idsFinais : [agendamentoId]),
         clienteId: agendamentoData.clienteId || '',
         clienteNome: cliente?.nome || 'Cliente',
+        clienteTelefone: cliente?.telefone || agendamentoData.clienteTelefone || null,
+        clienteEmail: cliente?.email || agendamentoData.clienteEmail || null,
         servicoId: agendamentoData.servicoId || '',
         servicoNome: servico?.nome || agendamentoData.servicoNome || 'Serviço',
         servicoValor: servico?.valor || agendamentoData.servicoValor || 0,
+        estabelecimentoId: agendamentoData.estabelecimentoId || null,
+        estabelecimentoNome: estabelecimento?.nome || agendamentoData.estabelecimentoNome || null,
+        profissionalId: agendamentoData.profissionalId || null,
+        profissionalNome: agendamentoData.profissionalNome || null,
         data: agDate,
         horario: horariosRelacionados.length > 1 ? horariosRelacionados : horariosRelacionados[0],
         status: agendamentoData.status || 'agendado',
         observacoes: agendamentoData.observacoes || null,
         formaPagamento: agendamentoData.formaPagamento || null,
+        calendarEvent: agendamentoData.calendarEvent || null,
       }
 
       setAgendamento(agendamento)
@@ -283,7 +302,25 @@ function AgendamentoDetalhesModal({
       const resultados = await Promise.all(
         idsParaAtualizar.map(async (id) => {
           try {
-            await agendamentosService.update(id, { status: newStatus })
+            const horarioAtual = Array.isArray(agendamento.horario) ? agendamento.horario[0] : agendamento.horario
+            await agendamentosService.update(id, {
+              status: newStatus,
+              calendarEvent: buildCalendarAssociation(
+                {
+                  id,
+                  data: agendamento.data,
+                  horario: horarioAtual,
+                  clienteNome: agendamento.clienteNome,
+                  clienteTelefone: agendamento.clienteTelefone || null,
+                  clienteEmail: agendamento.clienteEmail || null,
+                  servicoNome: agendamento.servicoNome,
+                  profissionalNome: agendamento.profissionalNome || null,
+                  estabelecimentoNome: agendamento.estabelecimentoNome || null,
+                  status: newStatus,
+                },
+                effectiveConfig.intervaloMinutos
+              ),
+            })
             return { id, sucesso: true }
           } catch (error) {
             console.error(`Erro ao atualizar agendamento ${id}:`, error)
@@ -443,6 +480,47 @@ function AgendamentoDetalhesModal({
 
   if (!isOpen) return null
 
+  const horarioPrincipal = agendamento
+    ? (Array.isArray(agendamento.horario) ? agendamento.horario[0] : agendamento.horario)
+    : ''
+  const calendarEvent = agendamento
+    ? agendamento.calendarEvent || buildCalendarAssociation(
+      {
+        id: agendamento.id,
+        data: agendamento.data,
+        horario: horarioPrincipal,
+        clienteNome: agendamento.clienteNome,
+        clienteTelefone: agendamento.clienteTelefone || null,
+        clienteEmail: agendamento.clienteEmail || null,
+        servicoNome: agendamento.servicoNome,
+        profissionalNome: agendamento.profissionalNome || null,
+        estabelecimentoNome: agendamento.estabelecimentoNome || null,
+        status: agendamento.status,
+      },
+      effectiveConfig.intervaloMinutos
+    )
+    : null
+  const whatsappLink = agendamento?.clienteTelefone
+    ? buildWhatsAppLink(
+      agendamento.clienteTelefone,
+      buildWhatsAppMessage(
+        agendamento.status === 'cancelado' ? 'cancelamento' : 'confirmacao',
+        {
+          clienteNome: agendamento.clienteNome,
+          clienteTelefone: agendamento.clienteTelefone,
+          clienteEmail: agendamento.clienteEmail,
+          servicoNome: agendamento.servicoNome,
+          profissionalNome: agendamento.profissionalNome || null,
+          estabelecimentoNome: agendamento.estabelecimentoNome || null,
+          data: agendamento.data,
+          horario: horarioPrincipal,
+          status: agendamento.status,
+        },
+        config ?? undefined
+      )
+    )
+    : null
+
   return (
     <div className="modal-overlay agendamento-detalhes-overlay" onClick={onClose}>
       <div ref={modalRef} className="modal-content agendamento-detalhes-modal" onClick={(e) => e.stopPropagation()}>
@@ -495,6 +573,16 @@ function AgendamentoDetalhesModal({
                 </div>
 
                 <div className="info-item">
+                  <span className="info-label">Profissional:</span>
+                  <span className="info-value">{agendamento.profissionalNome || 'Não definido'}</span>
+                </div>
+
+                <div className="info-item">
+                  <span className="info-label">Estabelecimento:</span>
+                  <span className="info-value">{agendamento.estabelecimentoNome || 'Não definido'}</span>
+                </div>
+
+                <div className="info-item">
                   <span className="info-label">Data:</span>
                   <span className="info-value">{formatDate(agendamento.data)}</span>
                 </div>
@@ -522,6 +610,13 @@ function AgendamentoDetalhesModal({
                     {formatarMoeda(agendamento.servicoValor, config)}
                   </span>
                 </div>
+
+                {agendamento.clienteTelefone && (
+                  <div className="info-item">
+                    <span className="info-label">Telefone:</span>
+                    <span className="info-value">{agendamento.clienteTelefone}</span>
+                  </div>
+                )}
 
                 <div className="info-item">
                   <span className="info-label">Forma de Pagamento:</span>
@@ -605,6 +700,28 @@ function AgendamentoDetalhesModal({
                     </svg>
                     Editar
                   </button>
+
+                  {whatsappLink && (
+                    <a className="action-btn action-status" href={whatsappLink} target="_blank" rel="noreferrer">
+                      WhatsApp
+                    </a>
+                  )}
+
+                  {calendarEvent?.googleCalendarUrl && (
+                    <a className="action-btn action-status" href={calendarEvent.googleCalendarUrl} target="_blank" rel="noreferrer">
+                      Google Calendar
+                    </a>
+                  )}
+
+                  {calendarEvent?.icsDataUri && (
+                    <a
+                      className="action-btn action-status"
+                      href={calendarEvent.icsDataUri}
+                      download={`agendamento-${agendamento.id}.ics`}
+                    >
+                      Baixar .ics
+                    </a>
+                  )}
 
                   <div className="status-dropdown-wrapper" ref={statusDropdownRef}>
                     <button
@@ -703,4 +820,3 @@ function AgendamentoDetalhesModal({
 }
 
 export default AgendamentoDetalhesModal
-

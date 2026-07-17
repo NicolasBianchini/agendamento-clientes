@@ -313,6 +313,16 @@
   line-height: 1.2;
 }
 
+.agendamento-meta {
+  font-size: 0.625rem;
+  color: var(--text-secondary, var(--color-gray-medium));
+  margin: 0 0 0.125rem 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  line-height: 1.2;
+}
+
 .agendamento-horario {
   font-size: 0.625rem;
   color: var(--color-accent);
@@ -485,4 +495,3 @@
     height: 40px;
   }
 }
-

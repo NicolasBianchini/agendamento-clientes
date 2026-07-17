@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { atualizarUsuario } from '../services/usuarios'
-import { type Usuario, type UserRole } from '../services/auth'
+import { getUserSession, isProprietario, type Usuario, type UserRole } from '../services/auth'
+import { estabelecimentosService } from '../services/firestore'
 import { useKeyboardNavigation } from '../hooks/useKeyboardNavigation'
 import { formatarDataParaInput } from '../utils/formatacao'
 import MaskedInput from './MaskedInput'
@@ -18,8 +19,10 @@ function EditarUsuarioModal({ isOpen, onClose, onSuccess, usuario }: EditarUsuar
   const [email, setEmail] = useState('')
   const [cpf, setCpf] = useState('')
   const [senha, setSenha] = useState('')
-  const [role, setRole] = useState<UserRole>('cliente')
+  const [role, setRole] = useState<UserRole>('profissional')
   const [ativo, setAtivo] = useState(true)
+  const [estabelecimentoId, setEstabelecimentoId] = useState('')
+  const [estabelecimentos, setEstabelecimentos] = useState<Array<{ id: string; nome: string }>>([])
   const [dataExpiracao, setDataExpiracao] = useState<string>('')
   const [semExpiracao, setSemExpiracao] = useState(false)
   const [errors, setErrors] = useState<{
@@ -34,14 +37,45 @@ function EditarUsuarioModal({ isOpen, onClose, onSuccess, usuario }: EditarUsuar
   const [alterarSenha, setAlterarSenha] = useState(false)
 
   const modalRef = useKeyboardNavigation(isOpen, onClose)
+  const usuarioAtual = getUserSession()
+  const usuarioProprietario = isProprietario(usuarioAtual)
+  const editandoProprioProprietario = usuarioProprietario && usuarioAtual?.id === usuario.id && usuario.role === 'proprietario'
+  const roleOptions: Array<{ value: UserRole; label: string }> = usuarioProprietario
+    ? editandoProprioProprietario
+      ? [
+          { value: 'proprietario', label: 'Proprietário' },
+        ]
+      : [
+        { value: 'profissional', label: 'Profissional' },
+        ]
+    : [
+        { value: 'profissional', label: 'Profissional' },
+        { value: 'cliente', label: 'Cliente' },
+        { value: 'proprietario', label: 'Proprietário' },
+        { value: 'admin', label: 'Admin' },
+        { value: 'admin_master', label: 'Admin Master' },
+      ]
+
+  useEffect(() => {
+    if (isOpen) {
+      loadEstabelecimentos()
+    }
+  }, [isOpen])
 
   useEffect(() => {
     if (isOpen && usuario) {
       setNome(usuario.nome)
       setEmail(usuario.email)
       setCpf(usuario.cpf || '')
-      setRole(usuario.role)
+      setRole(
+        editandoProprioProprietario
+          ? 'proprietario'
+          : usuarioProprietario && usuario.role !== 'profissional' && usuario.role !== 'cliente'
+            ? 'profissional'
+            : usuario.role
+      )
       setAtivo(usuario.ativo)
+      setEstabelecimentoId(usuarioProprietario ? usuarioAtual?.estabelecimentoId || '' : usuario.estabelecimentoId || '')
       setSenha('')
       setAlterarSenha(false)
       if (usuario.dataExpiracao) {
@@ -54,7 +88,16 @@ function EditarUsuarioModal({ isOpen, onClose, onSuccess, usuario }: EditarUsuar
       }
       setErrors({})
     }
-  }, [isOpen, usuario])
+  }, [isOpen, usuario, usuarioProprietario, usuarioAtual?.estabelecimentoId, editandoProprioProprietario])
+
+  const loadEstabelecimentos = async () => {
+    try {
+      const data = await estabelecimentosService.getAll()
+      setEstabelecimentos((data as Array<{ id: string; nome: string }>).sort((a, b) => a.nome.localeCompare(b.nome)))
+    } catch (error) {
+      console.error('Erro ao carregar estabelecimentos no modal de edição:', error)
+    }
+  }
 
   const validateNome = (value: string): string | undefined => {
     if (!value.trim()) {
@@ -200,6 +243,7 @@ function EditarUsuarioModal({ isOpen, onClose, onSuccess, usuario }: EditarUsuar
         cpf: cpf.replace(/\D/g, ''),
         role,
         ativo,
+        estabelecimentoId: estabelecimentoId.trim() || null,
         dataExpiracao: semExpiracao ? null : (dataExpiracao || null),
       }
 
@@ -225,8 +269,9 @@ function EditarUsuarioModal({ isOpen, onClose, onSuccess, usuario }: EditarUsuar
     setEmail('')
     setCpf('')
     setSenha('')
-    setRole('cliente')
+    setRole('profissional')
     setAtivo(true)
+    setEstabelecimentoId('')
     setErrors({})
     setIsSubmitting(false)
     setShowPassword(false)
@@ -327,14 +372,43 @@ function EditarUsuarioModal({ isOpen, onClose, onSuccess, usuario }: EditarUsuar
               className="form-input"
               value={role}
               onChange={(e) => setRole(e.target.value as UserRole)}
-              disabled={isSubmitting}
+              disabled={isSubmitting || usuarioProprietario}
             >
-              <option value="cliente">Profissional (Barbeiro, Manicure, etc.)</option>
-              <option value="admin">Admin</option>
-              <option value="admin_master">Admin Master</option>
+              {roleOptions.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
             </select>
             <small className="form-hint">
-              Profissional: Acesso para gerenciar seus próprios agendamentos e clientes
+              {editandoProprioProprietario
+                ? 'Sua conta permanece como proprietária e aparece junto da equipe para referência administrativa.'
+                : usuarioProprietario
+                ? 'Como proprietário, você gerencia apenas profissionais da sua própria unidade.'
+                : 'Profissional: acesso operacional. Cliente: acesso para autoagendamento. Proprietário: visão do negócio.'}
+            </small>
+          </div>
+
+          <div className="form-group">
+            <label htmlFor="estabelecimentoId" className="form-label">
+              Estabelecimento
+            </label>
+            <select
+              id="estabelecimentoId"
+              className="form-input"
+              value={estabelecimentoId}
+              onChange={(e) => setEstabelecimentoId(e.target.value)}
+              disabled={isSubmitting || usuarioProprietario}
+            >
+              <option value="">Sem vínculo de estabelecimento</option>
+              {estabelecimentos.map((estabelecimento) => (
+                <option key={estabelecimento.id} value={estabelecimento.id}>
+                  {estabelecimento.nome}
+                </option>
+              ))}
+            </select>
+            <small className="form-hint">
+              Ajuste o estabelecimento do usuário para controlar o contexto operacional dele.
             </small>
           </div>
 

@@ -2,12 +2,15 @@ import { useState, useEffect } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { agendamentosService, clientesService, servicosService, fromFirestoreDate } from '../services/firestore'
 import { Timestamp } from 'firebase/firestore'
+import { getUserSession, isAdminMaster } from '../services/auth'
 import './Historico.css'
 
 interface Atendimento {
   id: string
   cliente: string
   servico: string
+  profissional?: string
+  estabelecimento?: string
   data: string // YYYY-MM-DD
   horario: string // HH:MM
   valor: number
@@ -25,6 +28,8 @@ interface Servico {
 }
 
 function Historico() {
+  const usuario = getUserSession()
+  const acessoBloqueado = isAdminMaster(usuario) || usuario?.role === 'admin'
   const [searchParams] = useSearchParams()
   const [allAtendimentos, setAllAtendimentos] = useState<Atendimento[]>([])
   const [atendimentos, setAtendimentos] = useState<Atendimento[]>([])
@@ -61,6 +66,11 @@ function Historico() {
   }, [filtroCliente, filtroServico, dataInicial, dataFinal, allAtendimentos])
 
   const loadData = async () => {
+    if (acessoBloqueado) {
+      setIsLoading(false)
+      return
+    }
+
     setIsLoading(true)
     try {
       // Buscar agendamentos concluídos no Firestore
@@ -112,6 +122,8 @@ function Historico() {
             id: ag.id,
             cliente: cliente?.nome || 'Cliente',
             servico: servico?.nome || ag.servicoNome || 'Serviço',
+            profissional: ag.profissionalNome || 'Profissional não informado',
+            estabelecimento: ag.estabelecimentoNome || 'Estabelecimento não informado',
             data: agDate,
             horario: ag.horario || '',
             valor: servico?.valor || ag.servicoValor || 0,
@@ -128,6 +140,17 @@ function Historico() {
     } finally {
       setIsLoading(false)
     }
+  }
+
+  if (acessoBloqueado) {
+    return (
+      <div className="historico-container">
+        <div className="historico-header">
+          <h1>Histórico</h1>
+          <p>Este perfil não possui acesso ao histórico de atendimentos.</p>
+        </div>
+      </div>
+    )
   }
 
   const applyFilters = () => {
@@ -412,6 +435,14 @@ function Historico() {
                   <span className="atendimento-label">Serviço:</span>
                   <span className="atendimento-text">{atendimento.servico}</span>
                 </div>
+                <div className="atendimento-info">
+                  <span className="atendimento-label">Profissional:</span>
+                  <span className="atendimento-text">{atendimento.profissional}</span>
+                </div>
+                <div className="atendimento-info">
+                  <span className="atendimento-label">Estabelecimento:</span>
+                  <span className="atendimento-text">{atendimento.estabelecimento}</span>
+                </div>
                 {atendimento.observacoes && (
                   <div className="atendimento-info">
                     <span className="atendimento-label">Observações:</span>
@@ -430,4 +461,3 @@ function Historico() {
 }
 
 export default Historico
-
